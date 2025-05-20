@@ -1,0 +1,65 @@
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Composer dependencies
+/vendor/
+
+# Node dependencies (if using tools like Webpack, Vite, etc.)
+/node_modules/
+
+# PHPStorm / JetBrains IDE
+.idea/
+
+# VS Code
+.vscode/
+
+# PHPUnit
+.phpunit.result.cache
+
+# PHPStorm meta files
+/.phpstorm.meta.php/
+
+# Laravel specific (optional, include if you're using Laravel)
+/bootstrap/cache/
+/storage/*.key
+/storage/app/public
+/storage/debugbar
+/storage/framework/cache
+/storage/framework/sessions
+/storage/framework/views
+/storage/logs
+
+# Symfony specific (optional)
+/var/
+/.env.local
+/.env.local.php
+
+# Environment variables
+.env
+.env.*
+
+# Log files
+*.log
+
+# Cache files
+*.cache
+
+# Coverage reports
+coverage/
+
+# Build artifacts
+/build/
+dist/
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# Mac backup files
+*.bak
+
+# Composer lock file (optional - usually kept)
+/composer.lock
