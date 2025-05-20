@@ -1,0 +1,13 @@
+name: persistables
+
+services:
+  php:
+    build:
+      context: .
+    environment:
+      PHP_DISPLAY_ERRORS: On
+      PHP_DATE_TIMEZONE: America/Chicago
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: tail -f /dev/null
