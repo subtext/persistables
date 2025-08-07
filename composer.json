@@ -1,6 +1,6 @@
 {
     "name": "subtext/persistables",
-    "description": "A PHP library for persisting object state to SQL and document databases using flexible, metadata-driven strategies.",
+    "description": "A PHP library for persisting object state to SQL databases using flexible, metadata-driven strategies.",
     "type": "library",
     "license": "MIT",
     "autoload": {
