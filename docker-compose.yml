@@ -1,0 +1,35 @@
+name: persistables
+
+services:
+  php:
+    build:
+      context: .
+    environment:
+      PHP_DISPLAY_ERRORS: On
+      PHP_DATE_TIMEZONE: America/Chicago
+      DB_USER: ${DB_USER}
+      DB_HOST: ${DB_HOST}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: tail -f /dev/null
+  sql:
+    image: mysql:8
+    command: mysqld --sql_mode=""
+    environment:
+      TZ: AmericaChicago
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_USER: ${DB_USER}
+    volumes:
+      - "mysql8_data:/var/lib/mysql"
+    expose:
+      - "3306"
+
+volumes:
+  mysql8_data:
+
+

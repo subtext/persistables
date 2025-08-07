@@ -60,6 +60,3 @@ dist/
 
 # Mac backup files
 *.bak
-
-# Composer lock file (optional - usually kept)
-/composer.lock
