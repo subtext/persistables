@@ -1,0 +1,36 @@
+{
+    "name": "subtext/persistables",
+    "description": "A PHP library for persisting object state to SQL and document databases using flexible, metadata-driven strategies.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Subtext\\Persistables\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Subtext\\Persistables\\Tests\\Unit\\": "tests/unit/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Alonzo C Turner",
+            "email": "alonzo.turner@subtext.productions"
+        }
+    ],
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/subtext/collections"
+        }
+    ],
+    "require": {
+        "php": ">=8.4",
+        "ext-pdo": "*",
+        "subtext/collections": "^1.0.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "12.3.0"
+    }
+}
