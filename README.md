@@ -14,8 +14,8 @@ data is mapped and stored in stateful services.
 
 ## 🧠 Core Concept
 
-Extend your domain models from `Subtext\Persistable`, and add attributes to inform
-the factory how to save your data.
+Extend your domain models from `Persistable`, and add attributes informing the 
+factory how to save your data.
 
 ```php
 namespace Subtext\Persistables;
@@ -30,10 +30,12 @@ class User extends Persistable
     #[Column(name: 'email_address')]
     protected ?string $email = null;
     
+    /**
+     * Defining an empty constructor allows the entity to be autowired for
+     * dependency injection
+     */
     public function __construct()
-    {
-        $this->modified = new Modifications\Collection();
-    }
+    {}
     
     public function getUserId(): ?int
     {

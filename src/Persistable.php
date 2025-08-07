@@ -11,11 +11,13 @@ abstract class Persistable implements JsonSerializable
 
     public function getModified(): Modifications\Collection
     {
+        $this->initModifications();
         return $this->modified;
     }
 
     public function resetModified(): void
     {
+        $this->initModifications();
         $this->modified->empty();
     }
 
@@ -34,8 +36,16 @@ abstract class Persistable implements JsonSerializable
 
     protected function modify(string $name, mixed $new): void
     {
+        $this->initModifications();
         $old = $this->$name;
         $this->modified->append(Modification::from($name, $old, $new));
         $this->$name = $new;
+    }
+
+    protected function initModifications(): void
+    {
+        if ($this->modified === null) {
+            $this->modified = new Modifications\Collection();
+        }
     }
 }
