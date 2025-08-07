@@ -1,5 +1,3 @@
-
-
 <?php
 
 namespace Subtext\Persistables\Databases\Meta;

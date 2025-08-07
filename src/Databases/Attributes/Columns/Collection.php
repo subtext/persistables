@@ -7,10 +7,6 @@ use Subtext\Persistables\Databases\Attributes\Column;
 
 class Collection extends Collections\Collection
 {
-
-    /**
-     * @inheritDoc
-     */
     protected function validate(mixed $value): void
     {
         if (!$value instanceof Column) {

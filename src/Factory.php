@@ -23,6 +23,15 @@ class Factory
         $this->meta = new Databases\Meta\Collection();
     }
 
+    /**
+     * Retrieve a single entity from the database using its primary key.
+     *
+     * @param string $entity
+     * @param mixed $primaryKeyValue
+     *
+     * @return Persistable
+     * @throws ReflectionException
+     */
     public function getEntityByPrimaryKey(string $entity, mixed $primaryKeyValue): Persistable
     {
         if (!(class_exists($entity) && is_subclass_of($entity, Persistable::class))) {
@@ -88,7 +97,7 @@ class Factory
     }
 
     /**
-     * Determines if the persistable object needs to be inserted
+     * Determines if the persistable object needs to be inserted.
      *
      * @param Persistable|Collection $persistable
      *
@@ -106,7 +115,7 @@ class Factory
     }
 
     /**
-     * Determines if the persistable object needs to be updated
+     * Determines if the persistable object needs to be updated.
      *
      * @param Persistable|Collection $persistable
      *
@@ -154,22 +163,11 @@ class Factory
     }
 
     /**
-     * @param Persistable $entity
+     * Insert a single entity, or a collection of entities, into the database.
+     *
+     * @param Persistable|Collection $object
      *
      * @return void
-     * @throws ReflectionException
-     */
-    protected function deleteEntity(Persistable $entity): void
-    {
-        $sql = Sql::getDeleteQuery($this->getTable($entity), $this->getPrimaryKey($entity));
-        if (!$this->db->execute($sql, [$this->getPrimaryKeyValue($entity)])) {
-            throw new RuntimeException(
-                'The database records could not be deleted'
-            );
-        }
-    }
-
-    /**
      * @throws ReflectionException
      */
     protected function performInsertOperation(Persistable|Collection $object): void
@@ -214,6 +212,9 @@ class Factory
     }
 
     /**
+     * Update a single entity, or a collection of entities, in the database. Uses
+     * the modifications collection to determine the values to be updated.
+     *
      * @param Persistable|Collection $object
      *
      * @return void
@@ -231,7 +232,7 @@ class Factory
     }
 
     /**
-     * Save the modified data from a persistable object to the database
+     * Save the modified data from a persistable object to the database.
      *
      * @param Persistable $object
      *
@@ -256,6 +257,11 @@ class Factory
     }
 
     /**
+     * Delete an entity, or collection of entities from the database.
+     *
+     * @param Persistable|Collection $object
+     *
+     * @return void
      * @throws ReflectionException
      */
     protected function performDeleteOperation(Persistable|Collection $object): void
@@ -289,6 +295,13 @@ class Factory
         }
     }
 
+    /**
+     * A utility function for insert data.
+     *
+     * @param array $params
+     *
+     * @return array
+     */
     protected function stripKeysFromParams(array $params): array
     {
         $output = [];
@@ -301,14 +314,21 @@ class Factory
     }
 
     /**
+     * Creates a map of database column names and their associated values, to be
+     * used in generating SQL statements.
+     *
+     * @param Persistable $object
+     * @param bool $modified
+     * @param bool $excludePrimaryKey
+     *
+     * @return array
      * @throws ReflectionException
      */
     protected function getDbParams(
         Persistable $object,
         bool $modified = false,
         bool $excludePrimaryKey = false
-    ): array
-    {
+    ): array {
         $data  = [];
         $meta = $this->getMeta($object::class);
         $cols = $meta->getColumns();
@@ -337,6 +357,11 @@ class Factory
     }
 
     /**
+     * Get the table name using metadata from the instance.
+     *
+     * @param Persistable $object
+     *
+     * @return string
      * @throws ReflectionException
      */
     protected function getTable(Persistable $object): string
@@ -345,6 +370,11 @@ class Factory
     }
 
     /**
+     * Get the column name of the primary key for the table.
+     *
+     * @param Persistable $object
+     *
+     * @return string
      * @throws ReflectionException
      */
     protected function getPrimaryKey(Persistable $object): string
@@ -353,6 +383,12 @@ class Factory
     }
 
     /**
+     * Get the value of the primary key for the table. This could be anything,
+     * * a number, a string, or null.
+     *
+     * @param Persistable $object
+     *
+     * @return mixed
      * @throws ReflectionException
      * @throws RuntimeException
      */
@@ -363,6 +399,17 @@ class Factory
     }
 
     /**
+     * @throws ReflectionException
+     */
+
+    /**
+     * Determines the getter method for the primary key of the object, and sets
+     * the value returned by the database.
+     *
+     * @param Persistable $object
+     * @param mixed $value
+     *
+     * @return void
      * @throws ReflectionException
      * @throws RuntimeException
      */
@@ -377,6 +424,12 @@ class Factory
     }
 
     /**
+     * Uses reflection to parse metadata from a FQDN for a class which extends
+     * Persistable. Table and Column attribute data is cached for each class.
+     *
+     * @param string $class
+     *
+     * @return Databases\Meta
      * @throws ReflectionException
      */
     private function getMeta(string $class): Databases\Meta
@@ -397,6 +450,8 @@ class Factory
     }
 
     /**
+     * Determine if the object instance should be inserted into the database.
+     *
      * @param Persistable $object The persistable instance object to evaluate
      * @param bool $carry         Used with a collection and the reduce method
      *
@@ -412,6 +467,9 @@ class Factory
     }
 
     /**
+     * Determine if the object instance has been modified, and needs to be
+     * updated in the database.
+     *
      * @param Persistable $object The persistable instance object to evaluate
      * @param bool $carry         Used with a collection and the reduce method
      *
@@ -428,6 +486,16 @@ class Factory
         return $carry;
     }
 
+    /**
+     * Determine the getter or setter name for a given property using best
+     * practices naming convention.
+     *
+     * @param Persistable $object
+     * @param string $property
+     * @param string $type
+     *
+     * @return string
+     */
     private function accessorName(
         Persistable $object,
         string $property,

@@ -2,6 +2,11 @@
 
 namespace Subtext\Persistables\Queries;
 
+/**
+ * A container for storing an SQL query and its associated data. The SqlCommand
+ * is used with transactions in the database. A collection of commands can be
+ * applied, if any fail, the whole thing is rolled back.
+ */
 class SqlCommand
 {
     private string $query;

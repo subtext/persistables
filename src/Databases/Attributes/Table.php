@@ -4,6 +4,9 @@ namespace Subtext\Persistables\Databases\Attributes;
 
 use Attribute;
 
+/**
+ * Table metadata for persistable objects.
+ */
 #[Attribute(Attribute::TARGET_CLASS)]
 class Table
 {

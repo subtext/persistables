@@ -105,6 +105,13 @@ class Sql
         return str_replace($search, $replace, $query);
     }
 
+    /**
+     * Generate a basic select using the primary key of an entity.
+     *
+     * @param Meta $meta
+     *
+     * @return string
+     */
     public static function getSelectQuery(Meta $meta): string
     {
         $table  = $meta->getTable();
@@ -125,11 +132,29 @@ class Sql
         );
     }
 
+    /**
+     * Generate a basic SQL insert statement based on the data provided.
+     *
+     * @param array $data
+     * @param string $table
+     *
+     * @return string
+     */
     public static function getInsertQuery(array $data, string $table): string
     {
         return sprintf(self::SQL_INSERT, $table, implode(',', array_keys($data)));
     }
 
+    /**
+     * Generate a basic SQL update statement, using only the columns which have
+     * been modified.
+     *
+     * @param array $data
+     * @param string $table
+     * @param string $primary
+     *
+     * @return string
+     */
     public static function getUpdateQuery(
         array $data,
         string $table,
@@ -142,6 +167,14 @@ class Sql
         return sprintf(self::SQL_UPDATE, $table, rtrim($str, ','), $primary);
     }
 
+    /**
+     * Generate a basic SQL delete statement using the primary key for the entity.
+     *
+     * @param string $table
+     * @param string $primaryKey
+     *
+     * @return string
+     */
     public static function getDeleteQuery(string $table, string $primaryKey): string
     {
         return sprintf(self::SQL_DELETE, $table, $primaryKey);
@@ -577,6 +610,11 @@ class Sql
         return $value;
     }
 
+    /**
+     * @param Throwable $e
+     *
+     * @return void
+     */
     private function recordError(Throwable $e): void
     {
         array_push($this->errors, [

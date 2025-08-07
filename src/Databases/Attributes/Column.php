@@ -5,7 +5,7 @@ namespace Subtext\Persistables\Databases\Attributes;
 use Attribute;
 
 /**
- * Define database column data for an entity property
+ * Column metadata for properties of persistable objects.
  */
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Column

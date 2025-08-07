@@ -4,6 +4,7 @@ namespace Subtext\Persistables\Databases\Connections;
 
 use PDO;
 use PDOException;
+use RuntimeException;
 use Subtext\Persistables\Databases\Connection;
 
 class MySql implements Connection
@@ -16,6 +17,11 @@ class MySql implements Connection
         $this->pdo = $pdo;
     }
 
+    /**
+     * Database credentials must be applied as environment variables.
+     *
+     * @return self
+     */
     public static function getInstance(): self
     {
         try {
@@ -31,7 +37,11 @@ class MySql implements Connection
                 ));
             }
         } catch (PDOException $e) {
-
+            throw new RuntimeException(
+                'The MySql connection could not be established.',
+                $e->getCode(),
+                $e
+            );
         } finally {
             return self::$instance;
         }
