@@ -15,5 +15,6 @@ class Column
         public ?string $table = null,
         public bool $primary = false,
         public bool $readonly = false
-    ) {}
+    ) {
+    }
 }

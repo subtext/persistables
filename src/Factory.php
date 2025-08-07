@@ -440,7 +440,7 @@ class Factory
             $table = $attr[0]->newInstance();
             $columns = new Databases\Attributes\Columns\Collection();
             foreach ($inspect->getProperties() as $property) {
-                foreach($property->getAttributes(Column::class) as $attribute) {
+                foreach ($property->getAttributes(Column::class) as $attribute) {
                     $columns->set($property->getName(), $attribute->newInstance());
                 }
             }
