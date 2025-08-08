@@ -18,15 +18,15 @@ class Sql
     public const int RESULT_FETCH_ONE = 2;
     public const int RESULT_FETCH_ROW = 3;
     public const int RESULT_FETCH_COL = 4;
-    public const string SQL_SELECT = 'SELECT %s FROM %s WHERE %s';
-    public const string SQL_INSERT = 'INSERT INTO `%s` (%s) VALUES XXX';
-    public const string SQL_UPDATE = 'UPDATE `%s` SET %s WHERE `%s` = ?';
-    public const string SQL_DELETE = 'DELETE FROM `%s` WHERE `%s` IN(XXX)';
-
+    public const string SQL_SELECT    = 'SELECT %s FROM %s WHERE %s';
+    public const string SQL_INSERT    = 'INSERT INTO `%s` (%s) VALUES XXX';
+    public const string SQL_UPDATE    = 'UPDATE `%s` SET %s WHERE `%s` = ?';
+    public const string SQL_DELETE    = 'DELETE FROM `%s` WHERE `%s` IN(XXX)';
+    public const array SQL_JOINS      = ['INNER','LEFT','RIGHT','FULL OUTER','JOIN'];
     private static self $instance;
     private readonly PDO $pdo;
     private array $statements = [];
-    private array $errors = [];
+    private array $errors     = [];
 
     private function __construct(Connection $connection)
     {

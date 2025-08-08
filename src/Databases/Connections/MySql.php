@@ -26,10 +26,10 @@ class MySql implements Connection
     {
         try {
             if (self::$instance === null) {
-                $name = getenv('DB_NAME');
-                $host = getenv('DB_HOST');
-                $user = getenv('DB_USER');
-                $pass = getenv('DB_PASS');
+                $name           = getenv('DB_NAME');
+                $host           = getenv('DB_HOST');
+                $user           = getenv('DB_USER');
+                $pass           = getenv('DB_PASS');
                 self::$instance = new self(new PDO(
                     "mysql:dbname={$name};host={$host};charset=utf8mb4",
                     $user,

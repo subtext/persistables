@@ -19,7 +19,7 @@ class Factory
 
     public function __construct(Sql $db)
     {
-        $this->db = $db;
+        $this->db   = $db;
         $this->meta = new Databases\Meta\Collection();
     }
 
@@ -29,10 +29,10 @@ class Factory
      * @param string $entity
      * @param mixed $primaryKeyValue
      *
-     * @return Persistable
+     * @return Persistable|null
      * @throws ReflectionException
      */
-    public function getEntityByPrimaryKey(string $entity, mixed $primaryKeyValue): Persistable
+    public function getEntityByPrimaryKey(string $entity, mixed $primaryKeyValue): ?Persistable
     {
         if (!(class_exists($entity) && is_subclass_of($entity, Persistable::class))) {
             throw new InvalidArgumentException(
@@ -329,7 +329,7 @@ class Factory
         bool $modified = false,
         bool $excludePrimaryKey = false
     ): array {
-        $data  = [];
+        $data = [];
         $meta = $this->getMeta($object::class);
         $cols = $meta->getColumns();
         if ($modified) {
@@ -339,7 +339,7 @@ class Factory
                     if ($excludePrimaryKey && $column->primary) {
                         continue;
                     }
-                    $method = $this->accessorName($object, $property);
+                    $method              = $this->accessorName($object, $property);
                     $data[$column->name] = $object->$method();
                 }
             }
@@ -348,7 +348,7 @@ class Factory
                 if ($excludePrimaryKey && $column->primary) {
                     continue;
                 }
-                $method = $this->accessorName($object, $property);
+                $method              = $this->accessorName($object, $property);
                 $data[$column->name] = $object->$method();
             }
         }

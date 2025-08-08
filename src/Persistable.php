@@ -39,7 +39,7 @@ abstract class Persistable implements JsonSerializable
     public function rollbackModifications(): void
     {
         foreach ($this->modified as $modification) {
-            $name = $modification->getName();
+            $name        = $modification->getName();
             $this->$name = $modification->getOldValue();
         }
         $this->modified->empty();

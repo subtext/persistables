@@ -6,6 +6,7 @@ use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
 use JsonException;
+use DateMalformedStringException;
 
 trait Hydrator
 {
@@ -36,7 +37,7 @@ trait Hydrator
      * @param bool $immutable   Whether the return type should be immutable
      *
      * @return DateTimeInterface|null
-     * @throws \DateMalformedStringException
+     * @throws DateMalformedStringException
      */
     protected function getDateValue(
         mixed $value,
