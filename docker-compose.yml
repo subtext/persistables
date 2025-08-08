@@ -26,8 +26,8 @@ services:
       MYSQL_USER: ${DB_USER}
     volumes:
       - "mysql8_data:/var/lib/mysql"
-    expose:
-      - "3306"
+    ports:
+      - "3306:3306"
 
 volumes:
   mysql8_data:
