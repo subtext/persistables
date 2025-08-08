@@ -8,6 +8,7 @@ use PDOException;
 use PDOStatement;
 use stdClass;
 use Subtext\Collections\Text;
+use Subtext\Persistables\Databases\Attributes\Joins;
 use Subtext\Persistables\Persistable;
 use Subtext\Persistables\Queries\Collection;
 use Throwable;
@@ -116,18 +117,31 @@ class Sql
     {
         $table  = $meta->getTable();
         $cols   = $meta->getColumns();
+        $joins  = $meta->getJoins();
         $fields = new Text();
         foreach ($cols as $property => $column) {
+            $tableName = $column->table ?? $table->name;
             if ($property === $column->name) {
-                $fields->append(sprintf('`%s`', $column->name));
+                $fields->append(
+                    sprintf('`%s`.`%s`', $tableName, $column->name)
+                );
             } else {
-                $fields->append(sprintf('`%s` AS `%s`', $column->name, $property));
+                $fields->append(sprintf(
+                    '`%s`.`%s` AS `%s`',
+                    $tableName,
+                    $column->name,
+                    $property
+                ));
             }
         }
         return sprintf(
             self::SQL_SELECT,
-            $fields->concat(),
-            $table->name,
+            $fields->concat(",\n"),
+            sprintf(
+                '`%s` %s',
+                $table->name,
+                self::getJoinClauses($joins, $table->name)->concat("\n")
+            ),
             sprintf('`%s` = ?', $table->primaryKey)
         );
     }
@@ -178,6 +192,27 @@ class Sql
     public static function getDeleteQuery(string $table, string $primaryKey): string
     {
         return sprintf(self::SQL_DELETE, $table, $primaryKey);
+    }
+
+    protected static function getJoinClauses(
+        Joins\Collection $joins,
+        string $tableName
+    ): Text {
+        $clauses = new Text();
+        foreach ($joins as $join) {
+            $origin  = sprintf('`%s`.`%s`', $tableName, $join->key);
+            $foreign = sprintf('`%s`.`%s`', $join->table, $join->key);
+            if ($join->foreign) {
+                $foreign = sprintf('`%s`.`%s`', $join->table, $join->foreign);
+            }
+            $clauses->append(trim(sprintf(
+                '%s JOIN `%s` ON %s',
+                $join->type == 'JOIN' ? '' : $join->type,
+                $join->table,
+                sprintf('%s = %s', $origin, $foreign ?? $origin)
+            )));
+        }
+        return $clauses;
     }
 
     /**

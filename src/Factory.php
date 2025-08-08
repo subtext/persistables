@@ -8,7 +8,11 @@ use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
 use Subtext\Persistables\Databases\Attributes\Column;
+use Subtext\Persistables\Databases\Attributes\Columns;
+use Subtext\Persistables\Databases\Attributes\Join;
+use Subtext\Persistables\Databases\Attributes\Joins;
 use Subtext\Persistables\Databases\Attributes\Table;
+use Subtext\Persistables\Databases\Attributes\Persistables\Collection as PersistableAttributeCollection;
 use Subtext\Persistables\Databases\Sql;
 
 class Factory
@@ -39,8 +43,48 @@ class Factory
                 'Entity must be a class which implements Persistable.'
             );
         }
-        $query = Sql::getSelectQuery($this->getMeta($entity));
-        return $this->db->getQueryRow($query, [$primaryKeyValue], PDO::FETCH_CLASS, $entity);
+        $result = $this->db->getQueryRow(
+            Sql::getSelectQuery($this->getMeta($entity)),
+            [$primaryKeyValue],
+            PDO::FETCH_CLASS, $entity
+        );
+        if (empty($result)) {
+            $result = null;
+        }
+        return $result;
+    }
+
+    /**
+     * Query the database for a collection of entities with the given query and
+     * params. The collection will determine the class of the objects returned.
+     *
+     * @param string $sql
+     * @param Collection $collection
+     * @param array $params
+     * @param bool $append
+     *
+     * @return Collection
+     * @throws ReflectionException
+     */
+    public function getEntityCollection(
+        string $sql,
+        Collection $collection,
+        array $params,
+        bool $append = true
+    ): Collection {
+        foreach ($this->db->getQueryData(
+            $sql,
+            $params,
+            PDO::FETCH_CLASS,
+            $collection->getEntityClass()
+        ) as $entity) {
+            if ($append) {
+                $collection->append($entity);
+            } else {
+                $collection->set($this->getPrimaryKeyValue($entity), $entity);
+            }
+        }
+        return $collection;
     }
 
     /**
@@ -130,36 +174,6 @@ class Factory
             $isUpdate = $this->isPersistableUpdate($persistable);
         }
         return $isUpdate;
-    }
-
-    /**
-     * Query the database for a collection of entities with the given query and
-     * params. The collection will determine the class of the objects returned.
-     *
-     * @param string $sql
-     * @param Collection $collection
-     * @param array $params
-     *
-     * @return Collection
-     */
-    protected function getEntityCollection(
-        string $sql,
-        Collection $collection,
-        array $params
-    ): Collection {
-        foreach ($this->db->getQueryData(
-            $sql,
-            $params,
-            PDO::FETCH_CLASS,
-            $collection->getEntityClass()
-        ) as $item) {
-            if (!$collection->has($item->getId())) {
-                $collection->set($item->getId(), $item);
-            } else {
-                $collection->append($item);
-            }
-        }
-        return $collection;
     }
 
     /**
@@ -436,15 +450,30 @@ class Factory
     {
         if (!$this->meta->has($class)) {
             $inspect = new ReflectionClass($class);
-            $attr = $inspect->getAttributes(Table::class);
-            $table = $attr[0]->newInstance();
-            $columns = new Databases\Attributes\Columns\Collection();
-            foreach ($inspect->getProperties() as $property) {
-                foreach ($property->getAttributes(Column::class) as $attribute) {
-                    $columns->set($property->getName(), $attribute->newInstance());
-                }
+            $tables  = $inspect->getAttributes(Table::class);
+            $table   = $tables[0]->newInstance();
+            $joins   = new Joins\Collection(array_map(function ($attr) {
+                return $attr->newInstance();
+            }, $inspect->getAttributes(Join::class)));
+            list($columns, $persistables) = array_reduce(
+                $inspect->getProperties(),
+                function ($carry, $property) {
+                    $cols = $property->getAttributes(Column::class);
+                    if (!empty($cols)) {
+                        $carry[0]->set($property->name, $cols[0]->newInstance());
+                    }
+                    $nested = $property->getAttributes(Persistable::class);
+                    if (!empty($nested)) {
+                        $carry[1]->set($property->name, $nested[0]->newInstance());
+                    }
+                    return $carry;
+                },
+                [new Columns\Collection(), new PersistableAttributeCollection()]
+            );
+            if ($joins->isEmpty()) {
+                $joins = null;
             }
-            $this->meta->set($class, new Databases\Meta($table, $columns));
+            $this->meta->set($class, new Databases\Meta($table, $columns, $joins));
         }
         return $this->meta->get($class);
     }
