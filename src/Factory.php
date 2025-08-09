@@ -4,27 +4,20 @@ namespace Subtext\Persistables;
 
 use InvalidArgumentException;
 use PDO;
-use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
-use Subtext\Persistables\Databases\Attributes\Column;
-use Subtext\Persistables\Databases\Attributes\Columns;
-use Subtext\Persistables\Databases\Attributes\Join;
-use Subtext\Persistables\Databases\Attributes\Joins;
-use Subtext\Persistables\Databases\Attributes\Table;
-use Subtext\Persistables\Databases\Attributes\Persistables\Collection as PersistableAttributeCollection;
 use Subtext\Persistables\Databases\Sql;
 
 class Factory
 {
     public const string ERROR_TYPE = 'The object must be an instance of Persistable or Collection';
     protected Sql $db;
-    private Databases\Meta\Collection $meta;
+    private Databases\Meta\Factory $meta;
 
     public function __construct(Sql $db)
     {
         $this->db   = $db;
-        $this->meta = new Databases\Meta\Collection();
+        $this->meta = Databases\Meta\Factory::getInstance();
     }
 
     /**
@@ -44,9 +37,10 @@ class Factory
             );
         }
         $result = $this->db->getQueryRow(
-            Sql::getSelectQuery($this->getMeta($entity)),
+            $this->db->getSelectQuery($this->getMeta($entity), null),
             [$primaryKeyValue],
-            PDO::FETCH_CLASS, $entity
+            PDO::FETCH_CLASS,
+            $entity
         );
         if (empty($result)) {
             $result = null;
@@ -189,23 +183,23 @@ class Factory
         $isCollection = ($object instanceof Collection);
         $isEntity     = ($object instanceof Persistable);
         if ($isCollection) {
+            $entity = $object->getEntityClass();
             $params = [];
             foreach ($object as $item) {
                 $params[] = $this->getDbParams($item, excludePrimaryKey: true);
             }
         } else {
+            $entity = $object::class;
             $params = $this->getDbParams($object, excludePrimaryKey: true);
         }
+        $meta = $this->getMeta($entity);
         if (($isCollection && $object->count() > 0 && count($params) > 0) || $isEntity) {
-            $table = $this->getTable($object);
             if (!array_is_list($params)) {
                 $params = [$params];
             }
-            $current = current($params);
-            $sql     = Sql::getInsertQuery($current, $table);
-            $params  = $this->stripKeysFromParams($params);
-            $query   = Sql::formatInsert($sql, $params);
-            $lastId  = $this->db->getIdForInsert($query, $params);
+            $sql    = $this->db->getInsertQuery($meta, count($params));
+            $params = $this->getParameterValues($params);
+            $lastId = $this->db->getIdForInsert($sql, $params);
             if ($lastId === 0) {
                 throw new RuntimeException(
                     'The database records could not be inserted'
@@ -257,9 +251,10 @@ class Factory
     {
         $params = $this->getDbParams($object, true, true);
         if (!empty($params)) {
-            $table        = $this->getTable($object);
-            $key          = $this->getPrimaryKey($object);
-            $itemSql      = Sql::getUpdateQuery($params, $table, $key);
+            $itemSql = $this->db->getUpdateQuery(
+                $this->getMeta($object::class),
+                $object->getModified()
+            );
             $itemParams   = array_values($params);
             $itemParams[] = $this->getPrimaryKeyValue($object);
             if (!$this->db->execute($itemSql, $itemParams)) {
@@ -282,26 +277,26 @@ class Factory
     {
         $params = [];
         if ($object instanceof Persistable) {
-            $table   = $this->getTable($object);
-            $primary = $this->getPrimaryKey($object);
+            $meta = $this->getMeta($object::class);
+            $rows = 1;
             foreach (($object->getPersistables() ?? []) as $childObject) {
                 $this->performDeleteOperation($childObject);
             }
             if (!is_null($id = $this->getPrimaryKeyValue($object))) {
-                array_push($params, $id);
+                $params[] = $id;
             }
         } else {
-            $table   = $this->getTable($object->getFirst());
-            $primary = $this->getPrimaryKey($object->getFirst());
+            $meta = $this->getMeta($object->getEntityClass());
+            $rows = $object->count();
             foreach ($object as $item) {
-                if (!is_null($id = $item->getId())) {
-                    array_push($params, $id);
+                if (!is_null($id = $this->getPrimaryKeyValue($item))) {
+                    $params[] = $id;
                 }
             }
         }
-        $query = Sql::getDeleteQuery($table, $primary);
+        $query = $this->db->getDeleteQuery($meta, $rows);
         if (count($params)) {
-            if (!$this->db->execute(Sql::formatIn($query, count($params)), $params)) {
+            if (!$this->db->execute($query, $params)) {
                 throw new RuntimeException(
                     'The database records could not be deleted'
                 );
@@ -316,12 +311,13 @@ class Factory
      *
      * @return array
      */
-    protected function stripKeysFromParams(array $params): array
+    protected function getParameterValues(array $params): array
     {
         $output = [];
         foreach ($params as $data) {
             if (is_array($data)) {
-                $output[] = array_values($data);
+                $values = array_values($data);
+                array_push($output, ...$values);
             }
         }
         return $output;
@@ -368,19 +364,6 @@ class Factory
         }
 
         return $data;
-    }
-
-    /**
-     * Get the table name using metadata from the instance.
-     *
-     * @param Persistable $object
-     *
-     * @return string
-     * @throws ReflectionException
-     */
-    protected function getTable(Persistable $object): string
-    {
-        return $this->getMeta($object::class)->getTable()->name;
     }
 
     /**
@@ -448,33 +431,6 @@ class Factory
      */
     private function getMeta(string $class): Databases\Meta
     {
-        if (!$this->meta->has($class)) {
-            $inspect = new ReflectionClass($class);
-            $tables  = $inspect->getAttributes(Table::class);
-            $table   = $tables[0]->newInstance();
-            $joins   = new Joins\Collection(array_map(function ($attr) {
-                return $attr->newInstance();
-            }, $inspect->getAttributes(Join::class)));
-            list($columns, $persistables) = array_reduce(
-                $inspect->getProperties(),
-                function ($carry, $property) {
-                    $cols = $property->getAttributes(Column::class);
-                    if (!empty($cols)) {
-                        $carry[0]->set($property->name, $cols[0]->newInstance());
-                    }
-                    $nested = $property->getAttributes(Persistable::class);
-                    if (!empty($nested)) {
-                        $carry[1]->set($property->name, $nested[0]->newInstance());
-                    }
-                    return $carry;
-                },
-                [new Columns\Collection(), new PersistableAttributeCollection()]
-            );
-            if ($joins->isEmpty()) {
-                $joins = null;
-            }
-            $this->meta->set($class, new Databases\Meta($table, $columns, $joins));
-        }
         return $this->meta->get($class);
     }
 
@@ -513,6 +469,13 @@ class Factory
             }
         }
         return $carry;
+    }
+
+    private function getPersistables(Persistable $object): ?Collection
+    {
+        $meta = $this->getMeta($object::class);
+
+        return null;
     }
 
     /**
