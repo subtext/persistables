@@ -7,31 +7,27 @@ use PDO;
 use PDOException;
 use PDOStatement;
 use stdClass;
-use Subtext\Collections\Text;
-use Subtext\Persistables\Databases\Attributes\Joins;
+use Subtext\Persistables\Modifications;
 use Subtext\Persistables\Persistable;
 use Subtext\Persistables\Queries\Collection;
 use Throwable;
 
-class Sql
+class Sql implements SqlGenerator
 {
     public const int RESULT_FETCH_ALL = 1;
     public const int RESULT_FETCH_ONE = 2;
     public const int RESULT_FETCH_ROW = 3;
     public const int RESULT_FETCH_COL = 4;
-    public const string SQL_SELECT    = 'SELECT %s FROM %s WHERE %s';
-    public const string SQL_INSERT    = 'INSERT INTO `%s` (%s) VALUES XXX';
-    public const string SQL_UPDATE    = 'UPDATE `%s` SET %s WHERE `%s` = ?';
-    public const string SQL_DELETE    = 'DELETE FROM `%s` WHERE `%s` IN(XXX)';
-    public const array SQL_JOINS      = ['INNER','LEFT','RIGHT','FULL OUTER','JOIN'];
     private static self $instance;
     private readonly PDO $pdo;
+    private readonly SqlGenerator $sqlGenerator;
     private array $statements = [];
     private array $errors     = [];
 
     private function __construct(Connection $connection)
     {
-        $this->pdo = $connection->getPdo();
+        $this->pdo          = $connection->getPdo();
+        $this->sqlGenerator = $connection->getSqlGenerator();
     }
 
     /**
@@ -59,160 +55,24 @@ class Sql
         return self::$instance;
     }
 
-    /**
-     * Format a query with multiple placeholders for data to be inserted. The
-     * number of placeholders is determined by the count parameter.
-     *
-     * @param string $query  The sql query to be formatted
-     * @param int    $count  The number of placeholders to be inserted
-     * @param string $search The string to be replaced in the query
-     *
-     * @return string The pdo formatted query with correct number of bindings
-     */
-    public static function formatIn(
-        string $query,
-        int $count,
-        string $search = 'XXX'
-    ): string {
-        $replace = str_repeat('?,', $count - 1) . '?';
-        return str_replace($search, $replace, $query);
-    }
-
-    /**
-     * Format an insert query with multiple rows of insert data. The params data
-     * is modified to be a single array of all the data to be inserted, so that
-     * it can be bound to the prepared statement.
-     *
-     * @param string $query  The sql query to be formatted
-     * @param array  $params The data to be inserted, must be an array of arrays
-     * @param string $search The string to be replaced in the query
-     *
-     * @return string The pdo formatted query with correct number of bindings
-     */
-    public static function formatInsert(
-        string $query,
-        array &$params,
-        string $search = 'XXX'
-    ): string {
-        $original = $params;
-        $params   = [];
-        $slugs    = [];
-        $replace  = '';
-        foreach ($original as $row) {
-            array_push($params, ...$row);
-            array_push($slugs, '(' . str_repeat('?,', count($row) - 1) . '?)');
-        }
-        $replace .= implode(',', $slugs);
-        return str_replace($search, $replace, $query);
-    }
-
-    /**
-     * Generate a basic select using the primary key of an entity.
-     *
-     * @param Meta $meta
-     *
-     * @return string
-     */
-    public static function getSelectQuery(Meta $meta): string
+    public function getSelectQuery(Meta $meta, ?string $clause): string
     {
-        $table  = $meta->getTable();
-        $cols   = $meta->getColumns();
-        $joins  = $meta->getJoins();
-        $fields = new Text();
-        foreach ($cols as $property => $column) {
-            $tableName = $column->table ?? $table->name;
-            if ($property === $column->name) {
-                $fields->append(
-                    sprintf('`%s`.`%s`', $tableName, $column->name)
-                );
-            } else {
-                $fields->append(sprintf(
-                    '`%s`.`%s` AS `%s`',
-                    $tableName,
-                    $column->name,
-                    $property
-                ));
-            }
-        }
-        return sprintf(
-            self::SQL_SELECT,
-            $fields->concat(",\n"),
-            sprintf(
-                '`%s` %s',
-                $table->name,
-                self::getJoinClauses($joins, $table->name)->concat("\n")
-            ),
-            sprintf('`%s` = ?', $table->primaryKey)
-        );
+        return $this->sqlGenerator->getSelectQuery($meta, $clause);
     }
 
-    /**
-     * Generate a basic SQL insert statement based on the data provided.
-     *
-     * @param array $data
-     * @param string $table
-     *
-     * @return string
-     */
-    public static function getInsertQuery(array $data, string $table): string
+    public function getInsertQuery(Meta $meta, int $rows = 1): string
     {
-        return sprintf(self::SQL_INSERT, $table, implode(',', array_keys($data)));
+        return $this->sqlGenerator->getInsertQuery($meta, $rows);
     }
 
-    /**
-     * Generate a basic SQL update statement, using only the columns which have
-     * been modified.
-     *
-     * @param array $data
-     * @param string $table
-     * @param string $primary
-     *
-     * @return string
-     */
-    public static function getUpdateQuery(
-        array $data,
-        string $table,
-        string $primary
-    ): string {
-        $str = '';
-        foreach (array_keys($data) as $key) {
-            $str .= sprintf('`%s` = ?,', $key);
-        }
-        return sprintf(self::SQL_UPDATE, $table, rtrim($str, ','), $primary);
-    }
-
-    /**
-     * Generate a basic SQL delete statement using the primary key for the entity.
-     *
-     * @param string $table
-     * @param string $primaryKey
-     *
-     * @return string
-     */
-    public static function getDeleteQuery(string $table, string $primaryKey): string
+    public function getUpdateQuery(Meta $meta, Modifications\Collection $modifications): string
     {
-        return sprintf(self::SQL_DELETE, $table, $primaryKey);
+        return $this->sqlGenerator->getUpdateQuery($meta, $modifications);
     }
 
-    protected static function getJoinClauses(
-        Joins\Collection $joins,
-        string $tableName
-    ): Text {
-        $clauses = new Text();
-        foreach ($joins as $join) {
-            $origin  = sprintf('`%s`.`%s`', $tableName, $join->key);
-            $foreign = sprintf('`%s`.`%s`', $join->table, $join->key);
-            if ($join->foreign) {
-                $foreign = sprintf('`%s`.`%s`', $join->table, $join->foreign);
-            }
-            $clauses->append(trim(sprintf(
-                '%s JOIN `%s` ON %s',
-                $join->type == 'JOIN' ? '' : $join->type,
-                $join->table,
-                sprintf('%s = %s', $origin, $foreign ?? $origin)
-            )));
-        }
-        return $clauses;
+    public function getDeleteQuery(Meta $meta, int $count = 1): string
+    {
+        return $this->sqlGenerator->getDeleteQuery($meta, $count);
     }
 
     /**
@@ -502,12 +362,13 @@ class Sql
     /**
      * Query the database given the query data and fetch styles
      *
-     * @param string $sql   The SQL query to be passed to the database
-     * @param array  $data  An array of data to be bound to the prepared query
-     * @param int    $type  An integer indicating how you want results returned
-     * @param int    $style An integer indicating the PDO fetch style
+     * @param string $sql The SQL query to be passed to the database
+     * @param array $data An array of data to be bound to the prepared query
+     * @param int $type An integer indicating how you want results returned
+     * @param int $style An integer indicating the PDO fetch style
+     * @param string|null $class
      *
-     * @return string|array
+     * @return array|string|Persistable|stdClass|null
      */
     private function getResultFromDatabase(
         string $sql,
@@ -547,6 +408,8 @@ class Sql
                         $result[] = $data;
                     }
                     break;
+                default:
+                    $result = false;
             }
             if ($result === false) {
                 $result = $this->getDefaultResult($type);
@@ -569,7 +432,7 @@ class Sql
      *
      * @return string|array
      */
-    private function getDefaultResult(int $type)
+    private function getDefaultResult(int $type): string|array
     {
         if ($type === self::RESULT_FETCH_ONE) {
             $result = '';

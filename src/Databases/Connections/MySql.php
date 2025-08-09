@@ -6,15 +6,19 @@ use PDO;
 use PDOException;
 use RuntimeException;
 use Subtext\Persistables\Databases\Connection;
+use Subtext\Persistables\Databases\SqlGenerator;
+use Subtext\Persistables\Databases\SqlGenerators\MySqlGenerator;
 
 class MySql implements Connection
 {
-    private ?PDO $pdo;
     private static ?self $instance = null;
+    private ?PDO $pdo;
+    private MySqlGenerator $generator;
 
     private function __construct(?PDO $pdo = null)
     {
-        $this->pdo = $pdo;
+        $this->pdo       = $pdo;
+        $this->generator = MySqlGenerator::getInstance();
     }
 
     /**
@@ -50,5 +54,10 @@ class MySql implements Connection
     public function getPdo(): PDO
     {
         return $this->pdo;
+    }
+
+    public function getSqlGenerator(): SqlGenerator
+    {
+        return $this->generator;
     }
 }
