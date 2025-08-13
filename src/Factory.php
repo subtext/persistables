@@ -10,7 +10,6 @@ use Subtext\Persistables\Databases\Sql;
 
 class Factory
 {
-    public const string ERROR_TYPE = 'The object must be an instance of Persistable or Collection';
     protected Sql $db;
     private Databases\Meta\Factory $meta;
 
@@ -109,12 +108,12 @@ class Factory
             unset($item);
         }
         if ($persistable instanceof Persistable) {
-            foreach (($persistable->getPersistables() ?? []) as $item) {
+            foreach (($this->getPersistables($persistable) ?? []) as $item) {
                 $this->persist($item);
             }
         } else {
             foreach ($persistable as $item) {
-                foreach ($item->getPersistables() ?? [] as $child) {
+                foreach ($this->getPersistables($item) ?? [] as $child) {
                     $this->persist($child);
                 }
             }
@@ -279,7 +278,7 @@ class Factory
         if ($object instanceof Persistable) {
             $meta = $this->getMeta($object::class);
             $rows = 1;
-            foreach (($object->getPersistables() ?? []) as $childObject) {
+            foreach (($this->getPersistables($object) ?? []) as $childObject) {
                 $this->performDeleteOperation($childObject);
             }
             if (!is_null($id = $this->getPrimaryKeyValue($object))) {
@@ -355,7 +354,7 @@ class Factory
             }
         } else {
             foreach ($cols as $property => $column) {
-                if ($excludePrimaryKey && $column->primary) {
+                if (($excludePrimaryKey && $column->primary) || $column->readonly) {
                     continue;
                 }
                 $method              = $this->accessorName($object, $property);
@@ -473,9 +472,43 @@ class Factory
 
     private function getPersistables(Persistable $object): ?Collection
     {
-        $meta = $this->getMeta($object::class);
 
-        return null;
+        $parentMeta  = $this->meta->get($object::class);
+        $childMeta   = $parentMeta->getPersistables() ?? [];
+        $descendants = [];
+        foreach ($childMeta as $entity) {
+            $getter = $entity->getter;
+            $child  = $object->$getter();
+            if ($child instanceof Collection) {
+                if (!$child->isEmpty()) {
+                    $descendants[] = $child;
+                }
+            } elseif (!is_null($child)) {
+                $descendants[] = $child;
+            }
+        }
+        $collection = null;
+        if (count($descendants)) {
+            $collection = new class ($descendants) extends Collection {
+                public function getEntityClass(): string
+                {
+                    return Collection::class;
+                }
+
+                protected function validate(mixed $value): void
+                {
+                    if (!($value instanceof Collection || $value instanceof Persistable)) {
+                        throw new InvalidArgumentException(sprintf(
+                            'Value must be an instance of %s or %s',
+                            Collection::class,
+                            Persistable::class
+                        ));
+                    }
+                }
+            };
+        }
+
+        return $collection;
     }
 
     /**

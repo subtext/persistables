@@ -50,7 +50,7 @@ class Meta
         return $this->joins;
     }
 
-    public function getPersistables(): Entities\Collection
+    public function getPersistables(): ?Entities\Collection
     {
         return $this->persistables;
     }

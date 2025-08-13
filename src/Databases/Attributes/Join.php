@@ -3,6 +3,7 @@
 namespace Subtext\Persistables\Databases\Attributes;
 
 use Attribute;
+use InvalidArgumentException;
 
 /**
  * Attribute to specify a database join metadata for a persistable class.
@@ -30,6 +31,8 @@ use Attribute;
 #[Attribute(Attribute::TARGET_CLASS | Attribute::IS_REPEATABLE)]
 class Join
 {
+    public const array TYPES = ['INNER','LEFT','RIGHT','FULL OUTER','JOIN'];
+
     /**
      * Constructor for the Join attribute.
      *
@@ -41,12 +44,20 @@ class Join
      * @param string|null $foreign Optional foreign key column in the joined table.
      *                             If null, it is assumed the foreign key column
      *                             has the same name as the base key.
+     * @param string|null $target  Optional value for targeting join against
+     *                             another table besides the base within the join.
      */
     public function __construct(
         public string $type,
         public string $table,
         public string $key,
-        public ?string $foreign = null
+        public ?string $foreign = null,
+        public ?string $target = null
     ) {
+        if (!in_array($type, self::TYPES)) {
+            throw new InvalidArgumentException(
+                'Join type must be one of ' . implode(', ', self::TYPES)
+            );
+        }
     }
 }

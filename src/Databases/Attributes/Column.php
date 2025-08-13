@@ -50,12 +50,18 @@ class Column
      * @param bool        $readonly If true, this property is read-only and will not be
      *                              saved back to the database. Typically used for
      *                              projection or computed values.
+     * @param string|null $getter   The method name of the getter. If null, the
+     *                              method name is inferred from the property.
+     * @param string|null $setter   The method name of the setter. If null, the
+     *                              method name is inferred from the property.
      */
     public function __construct(
         public ?string $name = null,
         public ?string $table = null,
         public bool $primary = false,
-        public bool $readonly = false
+        public bool $readonly = false,
+        public ?string $getter = null,
+        public ?string $setter = null
     ) {
     }
 }

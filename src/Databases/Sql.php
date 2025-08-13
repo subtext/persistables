@@ -55,7 +55,7 @@ class Sql implements SqlGenerator
         return self::$instance;
     }
 
-    public function getSelectQuery(Meta $meta, ?string $clause): string
+    public function getSelectQuery(Meta $meta, ?string $clause = null): string
     {
         return $this->sqlGenerator->getSelectQuery($meta, $clause);
     }

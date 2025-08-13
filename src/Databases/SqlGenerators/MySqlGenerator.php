@@ -3,6 +3,7 @@
 namespace Subtext\Persistables\Databases\SqlGenerators;
 
 use Subtext\Collections\Text;
+use Subtext\Persistables\Databases\Attributes\Column;
 use Subtext\Persistables\Databases\Attributes\Joins\Collection;
 use Subtext\Persistables\Databases\Meta;
 use Subtext\Persistables\Databases\SqlGenerator;
@@ -68,14 +69,22 @@ class MySqlGenerator implements SqlGenerator
 
     public function getInsertQuery(Meta $meta, int $rows = 1): string
     {
+        $table   = $meta->getTable();
+        $columns = $meta->getColumns()->filter(function (Column $column) {
+            return $column->readonly === false;
+        });
         return $this->formatInsert(
             sprintf(
                 self::SQL_INSERT,
-                $meta->getTable()->name,
-                trim(implode(', ', $meta->getColumns()->getKeys()))
+                $table->name,
+                trim(implode(', ', $columns->getKeys()))
             ),
             $rows,
-            $meta->getColumns()->count()
+            $columns->count()
+        ) . sprintf(
+            ' ON DUPLICATE KEY UPDATE %s = LAST_INSERT_ID(%s)',
+            $table->primaryKey,
+            $table->primaryKey
         );
     }
 
