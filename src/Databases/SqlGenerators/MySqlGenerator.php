@@ -61,7 +61,7 @@ class MySqlGenerator implements SqlGenerator
             sprintf(
                 "`%s`\n%s",
                 $table->name,
-                $this->getJoinClauses($joins, $table->name)->concat("\n")
+                $joins ? $this->getJoinClauses($joins, $table->name)->concat("\n") : ''
             ),
             sprintf('`%s` = ?', $table->primaryKey)
         );

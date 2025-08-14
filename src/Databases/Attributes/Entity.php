@@ -27,10 +27,12 @@ class Entity
     /**
      * @param string|null $class   Class name of the referenced persistable.
      *                             If null, inferred from the property's type.
-     * @param string|null $foreign Column on this {@see Table} that corresponds
-     *                             to the primary key of the referenced class.
-     *                             If null, inferred from {@see Table::primaryKey}
-     *                             or {@see Column::$primary}.
+     * @param string|null $foreign Changes context based on the {@see PersistOrder}.
+     *                             When BEFORE, it indicates a property on this
+     *                             persistable which corresponds to the primary
+     *                             key of the entity. When AFTER, it corresponds
+     *                             to a property on the entity. When null, the
+     *                             relationship is automatically inferred.
      * @param bool $nullable       If true, the value returned from the accessor
      *                             may be null.
      * @param bool $collection     If true, the value returned from the accessor
@@ -39,6 +41,10 @@ class Entity
      *                             the name from the property.
      * @param string|null $setter  The method name of the setter. If null, infers
      *                             the name from the property.
+     * @param PersistOrder $order  Signifies the relationship of the parent to the
+     *                             entity. BEFORE indicates an entity independent
+     *                             of the persistable, and AFTER implies an owned
+     *                             relationship to the entity.
      */
     public function __construct(
         public ?string $class = null,

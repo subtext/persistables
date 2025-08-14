@@ -15,12 +15,12 @@ use Subtext\Persistables\Databases\Sql;
 class Factory
 {
     protected Sql $db;
-    private Databases\Meta\Factory $meta;
+    private Meta\Factory $meta;
 
     public function __construct(Sql $db)
     {
         $this->db   = $db;
-        $this->meta = Databases\Meta\Factory::getInstance();
+        $this->meta = Meta\Factory::getInstance();
     }
 
     /**
@@ -39,16 +39,17 @@ class Factory
                 'Entity must be a class which implements Persistable.'
             );
         }
+        $meta   = $this->getMeta($entity);
         $result = $this->db->getQueryRow(
-            $this->db->getSelectQuery($this->getMeta($entity), null),
+            $this->db->getSelectQuery($meta),
             [$primaryKeyValue],
             PDO::FETCH_CLASS,
             $entity
         );
-        if (empty($result)) {
-            $result = null;
+        if ($result) {
+            $this->recursivelyHydrate($result, $meta);
         }
-        return $result;
+        return empty($result) ? null : $result;
     }
 
     /**
@@ -426,10 +427,10 @@ class Factory
      *
      * @param string $class
      *
-     * @return Databases\Meta
+     * @return Meta
      * @throws ReflectionException
      */
-    private function getMeta(string $class): Databases\Meta
+    private function getMeta(string $class): Meta
     {
         return $this->meta->get($class);
     }
@@ -524,6 +525,45 @@ class Factory
     }
 
     /**
+     * @param Persistable $persistable
+     * @param Meta $meta
+     * @return void
+     * @throws ReflectionException
+     */
+    private function recursivelyHydrate(Persistable $persistable, Meta $meta): void
+    {
+        foreach ($meta->getPersistables() ?? [] as $entity) {
+            $childMeta = $this->getMeta($entity->class);
+            if ($entity->order === PersistOrder::BEFORE) {
+                $primaryKey = $entity->foreign ?? $childMeta->getTable()->primaryKey;
+                $getter     = $this->accessorName($persistable, $primaryKey);
+                $child      = $this->getEntityByPrimaryKey(
+                    $entity->class,
+                    $persistable->$getter()
+                );
+                $setter = $entity->setter;
+            } else {
+                $primaryKey = $this->getPrimaryKey($persistable);
+                $clause     = sprintf('`%s` = ?', $entity->foreign ?? $primaryKey);
+                $query      = $this->db->getSelectQuery($childMeta, $clause);
+                $setter     = $entity->setter;
+                if ($entity->collection) {
+                    $child = new ($entity->class)();
+                    $this->getEntityCollection($query, $child, []);
+                } else {
+                    $child = $this->db->getQueryRow(
+                        $query,
+                        [$this->getPrimaryKeyValue($persistable)],
+                        PDO::FETCH_CLASS,
+                        $entity->class
+                    );
+                }
+            }
+            $persistable->$setter($child);
+        }
+    }
+
+    /**
      * Each persistable may contain child entities, which themselves can contain
      * persistable objects. Recursively loop through those children, performing
      * the chosen action on each.
@@ -544,7 +584,7 @@ class Factory
         bool $persist = true
     ): void {
         $isCollection = $persistable instanceof Collection;
-        $meta = $isCollection
+        $meta         = $isCollection
               ? $this->getMeta($persistable->getEntityClass())
               : $this->getMeta($persistable::class);
         if ($isCollection) {
