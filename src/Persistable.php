@@ -53,13 +53,6 @@ abstract class Persistable implements JsonSerializable
     abstract public function jsonSerialize(): mixed;
 
     /**
-     * Returns a collection of child persistable objects or null if none exist.
-     *
-     * @return Collection|null
-     */
-    abstract public function getPersistables(): ?Collection;
-
-    /**
      * A utility method applied in setters, which tracks changes over time.
      *
      * @param string $name
@@ -71,8 +64,10 @@ abstract class Persistable implements JsonSerializable
     {
         $this->initModifications();
         $old = $this->$name;
-        $this->modified->append(Modification::from($name, $old, $new));
-        $this->$name = $new;
+        if ($old !== $new) {
+            $this->modified->append(Modification::from($name, $old, $new));
+            $this->$name = $new;
+        }
     }
 
     /**

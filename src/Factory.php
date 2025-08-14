@@ -6,6 +6,10 @@ use InvalidArgumentException;
 use PDO;
 use ReflectionException;
 use RuntimeException;
+use Subtext\Persistables\Databases\Attributes\Entities;
+use Subtext\Persistables\Databases\Attributes\Entity;
+use Subtext\Persistables\Databases\Attributes\PersistOrder;
+use Subtext\Persistables\Databases\Meta;
 use Subtext\Persistables\Databases\Sql;
 
 class Factory
@@ -93,6 +97,8 @@ class Factory
      */
     public function persist(Persistable|Collection $persistable): void
     {
+        $this->recursivelyHandlePersistables($persistable, PersistOrder::BEFORE);
+
         if ($this->isDbInsert($persistable)) {
             $this->performInsertOperation($persistable);
         } elseif ($this->isDbUpdate($persistable)) {
@@ -105,19 +111,8 @@ class Factory
                     $this->performSingleUpdate($item);
                 }
             }
-            unset($item);
         }
-        if ($persistable instanceof Persistable) {
-            foreach (($this->getPersistables($persistable) ?? []) as $item) {
-                $this->persist($item);
-            }
-        } else {
-            foreach ($persistable as $item) {
-                foreach ($this->getPersistables($item) ?? [] as $child) {
-                    $this->persist($child);
-                }
-            }
-        }
+        $this->recursivelyHandlePersistables($persistable, PersistOrder::AFTER);
     }
 
     /**
@@ -182,16 +177,15 @@ class Factory
         $isCollection = ($object instanceof Collection);
         $isEntity     = ($object instanceof Persistable);
         if ($isCollection) {
-            $entity = $object->getEntityClass();
+            $meta   = $this->getMeta($object->getEntityClass());
             $params = [];
             foreach ($object as $item) {
-                $params[] = $this->getDbParams($item, excludePrimaryKey: true);
+                $params[] = $this->getDbParams($item, $meta, excludePrimaryKey: true);
             }
         } else {
-            $entity = $object::class;
-            $params = $this->getDbParams($object, excludePrimaryKey: true);
+            $meta   = $this->getMeta($object::class);
+            $params = $this->getDbParams($object, $meta, excludePrimaryKey: true);
         }
-        $meta = $this->getMeta($entity);
         if (($isCollection && $object->count() > 0 && count($params) > 0) || $isEntity) {
             if (!array_is_list($params)) {
                 $params = [$params];
@@ -210,6 +204,7 @@ class Factory
                 foreach ($object as $item) {
                     if ($this->isDbInsert($item)) {
                         $this->setPrimaryKeyValue($item, $lastId);
+                        $item->resetModified();
                         $lastId++;
                     }
                     $item->resetModified();
@@ -248,7 +243,12 @@ class Factory
      */
     protected function performSingleUpdate(Persistable $object): void
     {
-        $params = $this->getDbParams($object, true, true);
+        $params = $this->getDbParams(
+            $object,
+            $this->getMeta($object::class),
+            modified: true,
+            excludePrimaryKey: true
+        );
         if (!empty($params)) {
             $itemSql = $this->db->getUpdateQuery(
                 $this->getMeta($object::class),
@@ -275,12 +275,11 @@ class Factory
     protected function performDeleteOperation(Persistable|Collection $object): void
     {
         $params = [];
+        // entities owned by this entity will also be deleted recursively
+        $this->recursivelyHandlePersistables($object, PersistOrder::AFTER, false);
         if ($object instanceof Persistable) {
             $meta = $this->getMeta($object::class);
             $rows = 1;
-            foreach (($this->getPersistables($object) ?? []) as $childObject) {
-                $this->performDeleteOperation($childObject);
-            }
             if (!is_null($id = $this->getPrimaryKeyValue($object))) {
                 $params[] = $id;
             }
@@ -304,11 +303,12 @@ class Factory
     }
 
     /**
-     * A utility function for insert data.
+     * A utility function for insert data, it strips keys and combines nested arrays
+     * into a single array used with a PDOStatement to bind query values.
      *
      * @param array $params
      *
-     * @return array
+     * @return array A flattened sequential array
      */
     protected function getParameterValues(array $params): array
     {
@@ -327,6 +327,7 @@ class Factory
      * used in generating SQL statements.
      *
      * @param Persistable $object
+     * @param Meta $meta
      * @param bool $modified
      * @param bool $excludePrimaryKey
      *
@@ -335,11 +336,11 @@ class Factory
      */
     protected function getDbParams(
         Persistable $object,
+        Meta $meta,
         bool $modified = false,
         bool $excludePrimaryKey = false
     ): array {
         $data = [];
-        $meta = $this->getMeta($object::class);
         $cols = $meta->getColumns();
         if ($modified) {
             foreach ($object->getModified()->getNames() as $property) {
@@ -470,26 +471,34 @@ class Factory
         return $carry;
     }
 
-    private function getPersistables(Persistable $object): ?Collection
+    /**
+     * @param Persistable $object
+     * @param Meta $meta
+     * @param PersistOrder $order
+     * @return Collection|null
+     */
+    private function getPersistables(Persistable $object, Meta $meta, PersistOrder $order): ?Collection
     {
 
-        $parentMeta  = $this->meta->get($object::class);
-        $childMeta   = $parentMeta->getPersistables() ?? [];
+        $entities  = ($meta->getPersistables() ?? new Entities\Collection());
+        $childMeta = $entities->filter(function (Entity $entity) use ($order) {
+            return $entity->order === $order;
+        });
         $descendants = [];
-        foreach ($childMeta as $entity) {
+        foreach ($childMeta as $property => $entity) {
             $getter = $entity->getter;
             $child  = $object->$getter();
             if ($child instanceof Collection) {
                 if (!$child->isEmpty()) {
-                    $descendants[] = $child;
+                    $descendants[$property] = $child;
                 }
             } elseif (!is_null($child)) {
-                $descendants[] = $child;
+                $descendants[$property] = $child;
             }
         }
         $collection = null;
         if (count($descendants)) {
-            $collection = new class ($descendants) extends Collection {
+            $collection = new class ([]) extends Collection {
                 public function getEntityClass(): string
                 {
                     return Collection::class;
@@ -506,9 +515,79 @@ class Factory
                     }
                 }
             };
+            foreach ($descendants as $property => $descendant) {
+                $collection->set($property, $descendant);
+            }
         }
 
         return $collection;
+    }
+
+    /**
+     * Each persistable may contain child entities, which themselves can contain
+     * persistable objects. Recursively loop through those children, performing
+     * the chosen action on each.
+     *
+     * @param Persistable|Collection $persistable A persistable object or collection
+     *                                            of persistable objects.
+     * @param PersistOrder $order                 Defines the relationship between
+     *                                            this entity and the child.
+     * @param bool $persist                       If true, the persist action is
+     *                                            used, otherwise desist.
+     *
+     * @return void
+     * @throws ReflectionException
+     */
+    private function recursivelyHandlePersistables(
+        Persistable|Collection $persistable,
+        PersistOrder $order,
+        bool $persist = true
+    ): void {
+        $isCollection = $persistable instanceof Collection;
+        $meta = $isCollection
+              ? $this->getMeta($persistable->getEntityClass())
+              : $this->getMeta($persistable::class);
+        if ($isCollection) {
+            foreach ($persistable as $item) {
+                $this->recurse(
+                    $this->getPersistables($item, $meta, $order) ?? [],
+                    $persist
+                );
+            }
+        } else {
+            $children = $this->getPersistables($persistable, $meta, $order) ?? [];
+            $this->recurse($children, $persist);
+            if ($order === PersistOrder::BEFORE) {
+                // apply children to parent object
+                $properties = $meta->getPersistables();
+                foreach ($children as $property => $child) {
+                    $setter = $properties->get($property)->setter;
+                    // allows the parent to update
+                    $persistable->$setter($child);
+                }
+            }
+        }
+    }
+
+    /**
+     * Apply the persist or desist method to each object recursively.
+     *
+     * @param iterable $collection Could be a collection or an empty array
+     * @param bool $persist        Persist when true, otherwise desist
+     * @param ?Persistable $parent A parent object on which to apply updates.
+     *
+     * @return void
+     * @throws ReflectionException
+     */
+    private function recurse(iterable $collection, bool $persist): void
+    {
+        foreach ($collection as $item) {
+            if ($persist) {
+                $this->persist($item);
+            } else {
+                $this->desist($item);
+            }
+        }
     }
 
     /**

@@ -142,7 +142,8 @@ class Factory
                 $type->allowsNull(),
                 is_subclass_of($targetClass, PersistableCollection::class),
                 $this->parseAccessor($child, $name, $class),
-                $this->parseAccessor($child, $name, $class, 'set')
+                $this->parseAccessor($child, $name, $class, 'set'),
+                $child->order
             ));
         }
 

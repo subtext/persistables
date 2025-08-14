@@ -46,7 +46,8 @@ class Entity
         public bool $nullable = false,
         public bool $collection = false,
         public ?string $getter = null,
-        public ?string $setter = null
+        public ?string $setter = null,
+        public PersistOrder $order = PersistOrder::AFTER
     ) {
     }
 }
