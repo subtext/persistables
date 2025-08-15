@@ -15,7 +15,7 @@ class SqlCommand
     public function __construct(string $query, array $data)
     {
         $this->query = $query;
-        $this->data = $data;
+        $this->data  = $data;
     }
 
     public function getQuery(): string

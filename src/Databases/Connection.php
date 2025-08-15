@@ -19,4 +19,6 @@ interface Connection
      * @throws TypeError if PDO is null
      */
     public function getPdo(): PDO;
+
+    public function getSqlGenerator(): SqlGenerator;
 }
