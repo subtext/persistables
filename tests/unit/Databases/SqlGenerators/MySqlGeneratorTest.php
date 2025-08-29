@@ -77,7 +77,7 @@ class MySqlGeneratorTest extends TestCase
             null
         );
 
-        $unit = MySqlGenerator::getInstance();
+        $unit   = MySqlGenerator::getInstance();
         $actual = $unit->getSelectQuery($meta);
 
         $this->assertEquals($expected, $actual);

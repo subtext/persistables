@@ -21,7 +21,6 @@ use Subtext\Persistables\Persistable;
 
 class Factory
 {
-    public const array ACCESSOR    = ['get', 'set'];
     private static ?self $instance = null;
     private Collection $meta;
 
@@ -185,11 +184,6 @@ class Factory
 
     private function inferAccessorName(string $property, string $class, string $type = 'get'): ?string
     {
-        if (!in_array($type, self::ACCESSOR)) {
-            throw new InvalidArgumentException(
-                'Type argument must be one of ' . implode(', ', self::ACCESSOR) . '.'
-            );
-        }
         $method = $type . ucfirst($property);
         $this->validateMethod($class, $method);
         return $method;
