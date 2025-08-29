@@ -23,10 +23,12 @@ namespace Subtext\Persistables;
 #[Table(name: 'users', primaryKey: 'userId')]
 class User extends Persistable
 {
-    #[Column(name: 'user_id', primary: true)]
+    #[Column(name: 'user_id')]
     protected ?int $userId = null;
+    
     #[Column(name: 'user_name')]
     protected ?string $userName = null;
+    
     #[Column(name: 'email_address')]
     protected ?string $email = null;
     
@@ -74,12 +76,6 @@ class User extends Persistable
             'userName' => $this->getUserName(),
             'email'    => $this->getEmail(),
         ];   
-    }
-    
-    public function getPersistables(): ?Collection
-    {
-        return null;
-    }
-    
+    }    
 }
 ```

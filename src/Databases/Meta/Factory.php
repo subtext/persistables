@@ -30,9 +30,9 @@ class Factory
         $this->meta = new Collection();
     }
 
-    public static function getInstance(): self
+    public static function getInstance(bool $new = false): self
     {
-        if (self::$instance === null) {
+        if (self::$instance === null || $new) {
             self::$instance = new self();
         }
         return self::$instance;

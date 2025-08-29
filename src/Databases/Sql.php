@@ -292,24 +292,23 @@ class Sql implements SqlGenerator
      */
     public function executeTransaction(Collection $commands): void
     {
-        $success = true;
+        $success = false;
+        $this->pdo->beginTransaction();
         foreach ($commands as $command) {
-            $this->pdo->beginTransaction();
-            try {
-                $stmt    = $this->getPreparedStatement($command->getQuery());
-                $success = $this->executeStatement($stmt, $command->getData());
-            } catch (Throwable $e) {
-                $success = false;
+            $stmt    = $this->getPreparedStatement($command->getQuery());
+            $success = $this->executeStatement($stmt, $command->getData());
+            if (!$success) {
+                break;
             }
-            if ($success) {
-                try {
-                    $this->pdo->commit();
-                } catch (Throwable $e) {
-                    $this->pdo->rollback();
-                }
-            } else {
+        }
+        if ($success) {
+            try {
+                $this->pdo->commit();
+            } catch (PDOException $e) {
                 $this->pdo->rollback();
             }
+        } else {
+            $this->pdo->rollback();
         }
     }
 
@@ -454,31 +453,28 @@ class Sql implements SqlGenerator
     private function executeStatement(PDOStatement $stmt, array $params): bool
     {
         try {
-            $success = true;
+            $success = false;
             if ($this->hasTypeData($params)) {
                 foreach ($params as $key => $obj) {
                     if (is_object($obj)) {
                         $stmt->bindValue($key, $obj->value, $obj->type);
                     } else {
+                        // defaults to string type
                         $stmt->bindValue($key, $obj);
                     }
                 }
-                $result = $stmt->execute();
+                $success = $stmt->execute();
             } else {
-                $result = $stmt->execute($params);
+                $success = $stmt->execute($params);
             }
-            if ($result === false) {
-                $success   = false;
+            if ($success === false) {
                 $errorInfo = $stmt->errorInfo();
-                array_push($this->errors, [
-                    'msg'  => $errorInfo[2],
-                    'code' => $errorInfo[0],
-                    'info' => $errorInfo[1],
-                ]);
-                if (!defined('TEST_MODE')) {
-                    error_log('PDO_FAILED_QUERY ' . $errorInfo[2]);
-                    error_log('PDO_FAILED_QUERY ' . $_SERVER['SCRIPT_FILENAME']);
-                    error_log('PDO_FAILED_QUERY ' . $stmt->queryString);
+                if (!empty($errorInfo)) {
+                    $this->errors[] = new Error(
+                        $errorInfo[2] ?? '',
+                        $errorInfo[0] ?? 500,
+                        $errorInfo[1] ?? ''
+                    );
                 }
             }
         } catch (PDOException $e) {
@@ -515,10 +511,10 @@ class Sql implements SqlGenerator
      */
     private function recordError(Throwable $e): void
     {
-        array_push($this->errors, [
-            'msg'  => $e->getMessage(),
-            'code' => $e->getCode(),
-            'info' => $e->getTraceAsString(),
-        ]);
+        $this->errors[] = new Error(
+            $e->getMessage(),
+            $e->getCode(),
+            $e->getTraceAsString()
+        );
     }
 }

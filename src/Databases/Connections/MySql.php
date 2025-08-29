@@ -13,7 +13,7 @@ class MySql implements Connection
 {
     private static ?self $instance = null;
     private ?PDO $pdo;
-    private MySqlGenerator $generator;
+    private SqlGenerator $generator;
 
     private function __construct(?PDO $pdo = null)
     {
@@ -24,28 +24,35 @@ class MySql implements Connection
     /**
      * Database credentials must be applied as environment variables.
      *
+     * @param Auth|null $auth
+     * @param bool $new
      * @return self
      */
-    public static function getInstance(): self
+    public static function getInstance(?Auth $auth = null, bool $new = false): self
     {
         try {
-            if (self::$instance === null) {
-                $name           = getenv('DB_NAME');
-                $host           = getenv('DB_HOST');
-                $user           = getenv('DB_USER');
-                $pass           = getenv('DB_PASS');
+            if (self::$instance === null || $new) {
+                if ($auth === null) {
+                    $name = getenv('DB_NAME');
+                    $host = getenv('DB_HOST');
+                    $user = getenv('DB_USER');
+                    $pass = getenv('DB_PASS');
+                    $char = 'utf8mb4';
+                } else {
+                    $name = $auth->database;
+                    $host = $auth->hostname;
+                    $user = $auth->username;
+                    $pass = $auth->password;
+                    $char = $auth->charset;
+                }
                 self::$instance = new self(new PDO(
-                    "mysql:dbname={$name};host={$host};charset=utf8mb4",
+                    "mysql:dbname=$name;host=$host;charset=$char",
                     $user,
                     $pass,
                 ));
             }
-        } catch (PDOException $e) {
-            throw new RuntimeException(
-                'The MySql connection could not be established.',
-                $e->getCode(),
-                $e
-            );
+        } catch (PDOException) {
+            self::$instance = new self(null);
         } finally {
             return self::$instance;
         }
@@ -53,6 +60,11 @@ class MySql implements Connection
 
     public function getPdo(): PDO
     {
+        if ($this->pdo === null) {
+            throw new RuntimeException(
+                'MySql PDO is not initialized, check credentials.'
+            );
+        }
         return $this->pdo;
     }
 
