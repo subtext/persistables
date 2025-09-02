@@ -194,6 +194,25 @@ class SqlTest extends TestCase
         $this->assertEquals($expected, $actual);
     }
 
+    public function testGetQueryResultWillReturnEmptyStringOnPdoException(): void
+    {
+        $sql = "SELECT `a`, `b`, `c` FROM `table` WHERE `id` = 1";
+        $this->stmt->expects($this->once())
+            ->method('execute')
+            ->willThrowException(new PDOException());
+        $this->pdo->expects($this->once())
+            ->method('prepare')
+            ->willReturn($this->stmt);
+        $this->connection->expects($this->once())
+            ->method('getPdo')
+            ->willReturn($this->pdo);
+
+        $unit   = Sql::getInstance($this->connection, true);
+        $actual = $unit->getQueryResult($sql);
+
+        $this->assertEquals('', $actual);
+    }
+
     public function testCanGetArrayOfStringsWithGetQueryRow(): void
     {
         $sql      = "SELECT `a`, `b`, `c` FROM `table` WHERE `id` = 1";
@@ -497,13 +516,7 @@ class SqlTest extends TestCase
         $query1->expects($this->once())
             ->method('getData')
             ->willReturn([20]);
-        $query2 = $this->createMock(SqlCommand::class);
-        $query2->expects($this->once())
-            ->method('getQuery')
-            ->willReturn($sql);
-        $query2->expects($this->once())
-            ->method('getData')
-            ->willReturn([21]);
+        $query2     = $this->createMock(SqlCommand::class);
         $collection = $this->createMock(Queries\Collection::class);
         $collection->method('getIterator')
             ->willReturn(new ArrayIterator([$query1, $query2]));
@@ -521,7 +534,7 @@ class SqlTest extends TestCase
             ->expects($this->once())
             ->method('rollback');
         $this->stmt
-            ->expects($this->exactly(2))
+            ->expects($this->once())
             ->method('execute')
             ->willReturn(false);
 
@@ -614,16 +627,41 @@ class SqlTest extends TestCase
 
     public function testCanQuoteString(): void
     {
+        $argument = 'whatever';
         $expected = "'whatever'";
 
         $this->connection->expects($this->once())
             ->method('getPdo')
             ->willReturn($this->pdo);
 
+        $this->pdo->expects($this->once())
+            ->method('quote')
+            ->with($this->equalTo($argument))
+            ->willReturn($expected);
+
         $unit   = Sql::getInstance($this->connection, true);
-        $actual = $unit->quote("whatever");
+        $actual = $unit->quote($argument);
 
         $this->assertEquals($expected, $actual);
+    }
+
+    public function testQuoteWillReturnNullOnError(): void
+    {
+        $argument = "'foobar'";
+        $this->connection->expects($this->once())
+            ->method('getPdo')
+            ->willReturn($this->pdo);
+
+        $this->pdo->expects($this->once())
+            ->method('quote')
+            ->with($this->equalTo($argument))
+            ->willReturn(false);
+
+        $unit   = Sql::getInstance($this->connection, true);
+        $actual = $unit->quote($argument);
+
+        $this->assertNull($actual);
+
     }
 
     public function testDoesReturnErrorInfoOnExceptions(): void

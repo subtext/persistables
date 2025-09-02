@@ -64,26 +64,6 @@ trait Hydrator
     }
 
     /**
-     * Gets the formatted date from a DateTime object.
-     *
-     * If the default datetime 0000-00-00 00:00:00 was used to create $date,
-     * returns null. Otherwise, returns the $date string formatted using DateTime::ATOM.
-     *
-     * @param DateTimeInterface|null $date
-     *
-     * @return string|null
-     */
-    public function getFormattedDate(?DateTimeInterface $date): ?string
-    {
-        if ($date instanceof DateTimeInterface && $date->getTimestamp() > -62169962964) {
-            $date = $date->format(DateTime::ATOM);
-        } else {
-            $date = null;
-        }
-        return $date;
-    }
-
-    /**
      * Return a boolean value.
      *
      * @param $value

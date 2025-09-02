@@ -28,8 +28,7 @@ class Collection extends Collections\Collection
         if ($this->count() > 0) {
             $names = new Collections\Text();
             foreach ($this as $modification) {
-                $value = $modification->getName();
-                $names->set($value, $value);
+                $names->append($modification->getName());
             }
         }
         return $names;

@@ -410,7 +410,7 @@ class Sql implements SqlGenerator
                 default:
                     $result = false;
             }
-            if ($result === false) {
+            if (($result ?? false) === false) {
                 $result = $this->getDefaultResult($type);
             }
         } catch (PDOException $e) {
