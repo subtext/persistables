@@ -2,6 +2,7 @@
 
 namespace Subtext\Persistables\Tests\Unit\Fixtures;
 
+use Subtext\Persistables\Databases\Attributes\PersistOrder;
 use Subtext\Persistables\Persistable;
 use Subtext\Persistables\Databases\Attributes\Table;
 use Subtext\Persistables\Databases\Attributes\Column;
@@ -13,7 +14,10 @@ class WithEntityExplicit extends Persistable
     #[Column(name: "id", primary: true)]
     protected ?int $id = null;
 
-    #[Entity(class: SimpleEntity::class, foreign: "simple_entity_id")]
+    #[Column('simple_entity_id')]
+    protected ?int $entityId = null;
+
+    #[Entity(class: SimpleEntity::class, foreign: "entityId", order: PersistOrder::BEFORE)]
     protected SimpleEntity $child;
 
     public function __construct()
@@ -29,6 +33,16 @@ class WithEntityExplicit extends Persistable
     public function setId(?int $id): void
     {
         $this->modify('id', $id);
+    }
+
+    public function getEntityId(): ?int
+    {
+        return $this->entityId;
+    }
+
+    public function setEntityId(int $entityId): void
+    {
+        $this->modify('entityId', $entityId);
     }
 
     public function getChild(): SimpleEntity

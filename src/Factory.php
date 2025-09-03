@@ -2,6 +2,7 @@
 
 namespace Subtext\Persistables;
 
+use Closure;
 use InvalidArgumentException;
 use PDO;
 use ReflectionException;
@@ -15,12 +16,12 @@ use Subtext\Persistables\Databases\Sql;
 class Factory
 {
     protected Sql $db;
-    private Meta\Factory $meta;
+    protected Meta\Factory $meta;
 
-    public function __construct(Sql $db)
+    public function __construct(Sql $db, Meta\Factory $meta)
     {
         $this->db   = $db;
-        $this->meta = Meta\Factory::getInstance();
+        $this->meta = $meta;
     }
 
     /**
@@ -31,6 +32,7 @@ class Factory
      *
      * @return Persistable|null
      * @throws ReflectionException
+     * @throws InvalidArgumentException
      */
     public function getEntityByPrimaryKey(string $entity, mixed $primaryKeyValue): ?Persistable
     {
@@ -39,7 +41,7 @@ class Factory
                 'Entity must be a class which implements Persistable.'
             );
         }
-        $meta   = $this->getMeta($entity);
+        $meta   = $this->meta->get($entity);
         $result = $this->db->getQueryRow(
             $this->db->getSelectQuery($meta),
             [$primaryKeyValue],
@@ -88,8 +90,8 @@ class Factory
     /**
      * Saves an object's state to the database by generating sql queries across
      * all tables used in populating the object data. This is a recursive method
-     * which uses the getPersistables method of the Persistable class to
-     * recursively apply the database logic to other embedded objects.
+     * which uses the {@see Entity} attribute metadata of the Persistable class
+     * to recursively apply the database logic to other embedded objects.
      *
      * @param Persistable|Collection $persistable
      *
@@ -140,7 +142,10 @@ class Factory
     protected function isDbInsert(Persistable|Collection $persistable): bool
     {
         if ($persistable instanceof Collection) {
-            $isInsert = $persistable->reduce([$this, 'isPersistableInsert'], false);
+            $isInsert = $persistable->reduce(
+                Closure::fromCallable([$this, 'isPersistableInsert']),
+                false
+            );
         } else {
             $isInsert = $this->isPersistableInsert($persistable);
         }
@@ -158,7 +163,10 @@ class Factory
     protected function isDbUpdate(Persistable|Collection $persistable): bool
     {
         if ($persistable instanceof Collection) {
-            $isUpdate = $persistable->reduce([$this, 'isPersistableUpdate'], false);
+            $isUpdate = $persistable->reduce(
+                Closure::fromCallable([$this, 'isPersistableUpdate']),
+                false
+            );
         } else {
             $isUpdate = $this->isPersistableUpdate($persistable);
         }
@@ -178,13 +186,13 @@ class Factory
         $isCollection = ($object instanceof Collection);
         $isEntity     = ($object instanceof Persistable);
         if ($isCollection) {
-            $meta   = $this->getMeta($object->getEntityClass());
+            $meta   = $this->meta->get($object->getEntityClass());
             $params = [];
             foreach ($object as $item) {
                 $params[] = $this->getDbParams($item, $meta, excludePrimaryKey: true);
             }
         } else {
-            $meta   = $this->getMeta($object::class);
+            $meta   = $this->meta->get($object::class);
             $params = $this->getDbParams($object, $meta, excludePrimaryKey: true);
         }
         if (($isCollection && $object->count() > 0 && count($params) > 0) || $isEntity) {
@@ -205,7 +213,6 @@ class Factory
                 foreach ($object as $item) {
                     if ($this->isDbInsert($item)) {
                         $this->setPrimaryKeyValue($item, $lastId);
-                        $item->resetModified();
                         $lastId++;
                     }
                     $item->resetModified();
@@ -246,13 +253,13 @@ class Factory
     {
         $params = $this->getDbParams(
             $object,
-            $this->getMeta($object::class),
+            $this->meta->get($object::class),
             modified: true,
             excludePrimaryKey: true
         );
         if (!empty($params)) {
             $itemSql = $this->db->getUpdateQuery(
-                $this->getMeta($object::class),
+                $this->meta->get($object::class),
                 $object->getModified()
             );
             $itemParams   = array_values($params);
@@ -262,6 +269,7 @@ class Factory
                     'The database records could not be updated'
                 );
             }
+            $object->resetModified();
         }
     }
 
@@ -279,13 +287,13 @@ class Factory
         // entities owned by this entity will also be deleted recursively
         $this->recursivelyHandlePersistables($object, PersistOrder::AFTER, false);
         if ($object instanceof Persistable) {
-            $meta = $this->getMeta($object::class);
+            $meta = $this->meta->get($object::class);
             $rows = 1;
             if (!is_null($id = $this->getPrimaryKeyValue($object))) {
                 $params[] = $id;
             }
         } else {
-            $meta = $this->getMeta($object->getEntityClass());
+            $meta = $this->meta->get($object->getEntityClass());
             $rows = $object->count();
             foreach ($object as $item) {
                 if (!is_null($id = $this->getPrimaryKeyValue($item))) {
@@ -377,7 +385,7 @@ class Factory
      */
     protected function getPrimaryKey(Persistable $object): string
     {
-        return $this->getMeta($object::class)->getTable()->primaryKey;
+        return $this->meta->get($object::class)->getTable()->primaryKey;
     }
 
     /**
@@ -419,20 +427,6 @@ class Factory
             'set'
         );
         $object->$method($value);
-    }
-
-    /**
-     * Uses reflection to parse metadata from a FQDN for a class which extends
-     * Persistable. Table and Column attribute data is cached for each class.
-     *
-     * @param string $class
-     *
-     * @return Meta
-     * @throws ReflectionException
-     */
-    private function getMeta(string $class): Meta
-    {
-        return $this->meta->get($class);
     }
 
     /**
@@ -533,7 +527,7 @@ class Factory
     private function recursivelyHydrate(Persistable $persistable, Meta $meta): void
     {
         foreach ($meta->getPersistables() ?? [] as $entity) {
-            $childMeta = $this->getMeta($entity->class);
+            $childMeta = $this->meta->get($entity->class);
             if ($entity->order === PersistOrder::BEFORE) {
                 $primaryKey = $entity->foreign ?? $childMeta->getTable()->primaryKey;
                 $getter     = $this->accessorName($persistable, $primaryKey);
@@ -585,8 +579,8 @@ class Factory
     ): void {
         $isCollection = $persistable instanceof Collection;
         $meta         = $isCollection
-              ? $this->getMeta($persistable->getEntityClass())
-              : $this->getMeta($persistable::class);
+              ? $this->meta->get($persistable->getEntityClass())
+              : $this->meta->get($persistable::class);
         if ($isCollection) {
             foreach ($persistable as $item) {
                 $this->recurse(

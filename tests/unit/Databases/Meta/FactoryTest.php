@@ -101,7 +101,7 @@ class FactoryTest extends TestCase
 
         $e = $ents->get('child');
         $this->assertSame(SimpleEntity::class, $e->class);
-        $this->assertSame('simple_entity_id', $e->foreign);
+        $this->assertSame('entityId', $e->foreign);
         $this->assertFalse($e->nullable);
         $this->assertSame('getChild', $e->getter);
         $this->assertSame('setChild', $e->setter);

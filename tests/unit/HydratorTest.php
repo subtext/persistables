@@ -147,12 +147,10 @@ class HydratorTest extends TestCase
     public function testHydrateJsonValue(): void
     {
         $expected = (object) [
-
         ];
 
-        $unit = new class(json_encode($expected)) {
+        $unit = new class (json_encode($expected)) {
             use Hydrator;
-
             protected string $json;
 
             public function __construct(string $json)
