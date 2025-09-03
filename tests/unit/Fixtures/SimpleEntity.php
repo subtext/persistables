@@ -6,7 +6,7 @@ use Subtext\Persistables\Persistable;
 use Subtext\Persistables\Databases\Attributes\Table;
 use Subtext\Persistables\Databases\Attributes\Column;
 
-#[Table(name: "simple_entity", primaryKey: "id")]
+#[Table(name: "simple_entities", primaryKey: "id")]
 class SimpleEntity extends Persistable
 {
     #[Column(name: "id", primary: true)]

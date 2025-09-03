@@ -53,7 +53,7 @@ class FactoryTest extends TestCase
     {
         $meta = MetaFactory::getInstance(true)->get(SimpleEntity::class);
 
-        $this->assertSame('simple_entity', $meta->getTable()->name);
+        $this->assertSame('simple_entities', $meta->getTable()->name);
         $cols = $meta->getColumns();
         $this->assertTrue($cols->has('id'));
         $this->assertTrue($cols->has('name'));

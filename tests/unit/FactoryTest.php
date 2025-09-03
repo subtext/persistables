@@ -34,10 +34,10 @@ class FactoryTest extends TestCase
         $expected->resetModified();
 
         $sql = <<<SQL
-        SELECT `simple_entity`.`id`,
-               `simple_entity`.`name`
-        FROM `simple_entity`
-        WHERE `simple_entity`.`id` = ?
+        SELECT `simple_entities`.`id`,
+               `simple_entities`.`name`
+        FROM `simple_entities`
+        WHERE `simple_entities`.`id` = ?
         SQL;
         $meta = $this->createMock(Meta::class);
 
@@ -76,10 +76,10 @@ class FactoryTest extends TestCase
         SQL;
 
         $childSql = <<<SQL
-        SELECT `simple_entity`.`id`,
-               `simple_entity`.`name`
-        FROM `simple_entity`
-        WHERE `simple_entity`.`id` = ?
+        SELECT `simple_entities`.`id`,
+               `simple_entities`.`name`
+        FROM `simple_entities`
+        WHERE `simple_entities`.`id` = ?
         SQL;
 
         $childEntity = $this->createMock(SimpleEntity::class);
@@ -120,7 +120,7 @@ class FactoryTest extends TestCase
             ->method('getSelectQuery')
             ->willReturnCallback(function ($class, $clause) use ($sql, $childSql) {
                 if ($class === SimpleEntity::class) {
-                    $this->assertEquals('`simple_entity`.`id` = ?', $clause);
+                    $this->assertEquals('`simple_entities`.`id` = ?', $clause);
                     return $childSql;
                 }
                 $this->assertEquals(null, $clause);
@@ -167,10 +167,10 @@ class FactoryTest extends TestCase
     public function testGetEntityCollectionWillAppendEntitiesByDefault(): void
     {
         $sql = <<<SQL
-        SELECT `simple_entity`.`id`,
-               `simple_entity`.`name`
-        FROM `simple_entity`
-        WHERE `simple_entity`.`id` IN (5,7,9)
+        SELECT `simple_entities`.`id`,
+               `simple_entities`.`name`
+        FROM `simple_entities`
+        WHERE `simple_entities`.`id` IN (5,7,9)
         SQL;
         $expected = [new SimpleEntity(), new SimpleEntity(), new SimpleEntity()];
 
@@ -216,10 +216,10 @@ class FactoryTest extends TestCase
         $expected = [$entity1, $entity2, $entity3];
 
         $sql = <<<SQL
-        SELECT `simple_entity`.`id`,
-               `simple_entity`.`name`
-        FROM `simple_entity`
-        WHERE `simple_entity`.`id` IN (5,7,9)
+        SELECT `simple_entities`.`id`,
+               `simple_entities`.`name`
+        FROM `simple_entities`
+        WHERE `simple_entities`.`id` IN (5,7,9)
         SQL;
 
         $collection = $this->createMock(Collection::class);
@@ -262,7 +262,7 @@ class FactoryTest extends TestCase
         $meta = $this->createMock(Meta::class);
         $meta->expects($this->exactly(3))
             ->method('getTable')
-            ->willReturn(new Table('simple_entity', 'id'));
+            ->willReturn(new Table('simple_entities', 'id'));
 
         $metaFactory = $this->createMock(MetaFactory::class);
         $metaFactory->expects($this->exactly(3))
@@ -280,12 +280,12 @@ class FactoryTest extends TestCase
         $meta = $this->createMock(Meta::class);
         $meta->expects($this->any())
             ->method('getTable')
-            ->willReturn(new Table('simple_entity', 'id'));
+            ->willReturn(new Table('simple_entities', 'id'));
 
         $database = $this->createMock(Sql::class);
         $database->expects($this->once())
             ->method('getInsertQuery')
-            ->willReturn('INSERT INTO `simple_entity` (`id`, `name`) VALUES (?, ?)');
+            ->willReturn('INSERT INTO `simple_entities` (`id`, `name`) VALUES (?, ?)');
         $database->expects($this->once())
             ->method('getIdForInsert')
             ->willReturn(1);
@@ -308,7 +308,7 @@ class FactoryTest extends TestCase
     public function testPersistWillUpdate(): void
     {
         $sql = <<<SQL
-        UPDATE `simple_entity`
+        UPDATE `simple_entities`
         SET `name` = ?
         WHERE `id` = ?
         SQL;
@@ -360,7 +360,7 @@ class FactoryTest extends TestCase
     public function testPersistWillInsertCollection(): void
     {
         $sql = <<<SQL
-        INSERT INTO `simple_entity` 
+        INSERT INTO `simple_entities` 
         (`name`) 
         VALUES (?),(?),(?)
         SQL;
@@ -438,7 +438,7 @@ class FactoryTest extends TestCase
     public function testPersistWillUpdateCollection(): void
     {
         $sql = <<<SQL
-        UPDATE `simple_entity` 
+        UPDATE `simple_entities` 
         SET `name` = ?
         WHERE `id` = ?
         SQL;
@@ -589,10 +589,10 @@ class FactoryTest extends TestCase
             ->with(
                 $this->equalTo($meta),
                 $this->equalTo($modified)
-            )->willReturn('UPDATE `simple_entity` SET `name` = ? WHERE `id` = ?');
+            )->willReturn('UPDATE `simple_entities` SET `name` = ? WHERE `id` = ?');
         $database->expects($this->once())
             ->method('getInsertQuery')
-            ->with()->willReturn('INSERT INTO `simple_entity` (`name`) VALUES (?)');
+            ->with()->willReturn('INSERT INTO `simple_entities` (`name`) VALUES (?)');
         $database->expects($this->once())
             ->method('execute')
             ->willReturn(true);
@@ -654,7 +654,7 @@ class FactoryTest extends TestCase
         $database = $this->createMock(Sql::class);
         $database->expects($this->once())
             ->method('getUpdateQuery')
-            ->willReturn('UPDATE `simple_entity` SET `name` = ? WHERE `id` = ?');
+            ->willReturn('UPDATE `simple_entities` SET `name` = ? WHERE `id` = ?');
 
         $metaFactory = $this->createMock(MetaFactory::class);
         $metaFactory->expects($this->any())
@@ -669,7 +669,7 @@ class FactoryTest extends TestCase
 
     public function testDesist(): void
     {
-        $sql  = 'DELETE FROM `simple_entity` WHERE `id` = ?';
+        $sql  = 'DELETE FROM `simple_entities` WHERE `id` = ?';
         $meta = $this->getMetaDataMock();
 
         $entity = $this->createMock(SimpleEntity::class);
@@ -706,7 +706,7 @@ class FactoryTest extends TestCase
 
     public function testDesistCollection(): void
     {
-        $sql = 'DELETE FROM `simple_entity` WHERE `id` IN (?,?,?)';
+        $sql = 'DELETE FROM `simple_entities` WHERE `id` IN (?,?,?)';
 
         $entity1 = $this->createMock(SimpleEntity::class);
         $entity1->expects($this->any())
@@ -750,7 +750,7 @@ class FactoryTest extends TestCase
 
     public function testDesistWillThrowRuntimeException(): void
     {
-        $sql    = 'DELETE FROM `simple_entity` WHERE `id` = ?';
+        $sql    = 'DELETE FROM `simple_entities` WHERE `id` = ?';
         $entity = $this->createMock(SimpleEntity::class);
         $entity->expects($this->any())
             ->method('getId')
@@ -783,12 +783,12 @@ class FactoryTest extends TestCase
         $meta = $this->createMock(Meta::class);
         $meta->expects($this->any())
             ->method('getTable')
-            ->willReturn(new Table('simple_entity', 'id'));
+            ->willReturn(new Table('simple_entities', 'id'));
         $meta->expects($this->any())
             ->method('getColumns')
             ->willReturn(new Columns\Collection([
-                'id'   => new Column('id', 'simple_entity', true, getter: 'getId', setter: 'setId'),
-                'name' => new Column('name', 'simple_entity', getter: 'getName', setter: 'setName'),
+                'id'   => new Column('id', 'simple_entities', true, getter: 'getId', setter: 'setId'),
+                'name' => new Column('name', 'simple_entities', getter: 'getName', setter: 'setName'),
             ]));
         $meta->expects($this->any())
             ->method('getPersistables')
