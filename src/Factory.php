@@ -7,6 +7,7 @@ use InvalidArgumentException;
 use PDO;
 use ReflectionException;
 use RuntimeException;
+use Subtext\Persistables\Databases\Attributes\Column;
 use Subtext\Persistables\Databases\Attributes\Entities;
 use Subtext\Persistables\Databases\Attributes\Entity;
 use Subtext\Persistables\Databases\Attributes\PersistOrder;
@@ -388,6 +389,23 @@ class Factory
         return $this->resolvePrimaryKeyName($this->meta->get($object::class));
     }
 
+    protected function getPrimaryKeyProperty(Meta $meta): string
+    {
+        $pk = $meta->getTable()->primaryKey;
+        $property = '';
+        foreach ($meta->getColumns() as $key => $column) {
+            if ($pk === null && $column->primary) {
+                $property = $key;
+                break;
+            } else if ($pk !== null && ($column->name ?? $key) === $pk) {
+                $property = $key;
+                break;
+            }
+        }
+
+        return $property;
+    }
+
     protected function isPrimaryKey(string $property, Meta $meta): bool
     {
         return $property === $this->resolvePrimaryKeyName($meta);
@@ -419,7 +437,10 @@ class Factory
      */
     protected function getPrimaryKeyValue(Persistable $object): mixed
     {
-        $method = $this->accessorName($object, $this->getPrimaryKey($object));
+        $method = $this->accessorName(
+            $object,
+            $this->getPrimaryKeyProperty($this->meta->get($object::class))
+        );
         return $object->$method();
     }
 

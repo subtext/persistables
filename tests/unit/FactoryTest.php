@@ -24,6 +24,7 @@ use Subtext\Persistables\Modifications;
 use Subtext\Persistables\Tests\Unit\Fixtures\ChildEntity;
 use Subtext\Persistables\Tests\Unit\Fixtures\Children;
 use Subtext\Persistables\Tests\Unit\Fixtures\ComplexAggregate;
+use Subtext\Persistables\Tests\Unit\Fixtures\OwnerAggregate;
 use Subtext\Persistables\Tests\Unit\Fixtures\SimpleEntity;
 use InvalidArgumentException;
 use Subtext\Persistables\Tests\Unit\Fixtures\WithEntityExplicit;
@@ -273,6 +274,108 @@ class FactoryTest extends TestCase
         $this->assertInstanceOf(ComplexAggregate::class, $actual);
     }
 
+    public function testGetEntityByPrimaryKeyWithOwnerAggregate(): void
+    {
+        $aggregateSql = <<<SQL
+        SELECT *
+        FROM `owner_aggregates`
+        WHERE id = ?
+        SQL;
+
+        $childSql = <<<SQL
+        SELECT *
+        FROM `child_entities`
+        WHERE `aggregateId` = ?
+        SQL;
+
+        $child = $this->createMock(ChildEntity::class);
+
+        $aggregate = $this->createMock(OwnerAggregate::class);
+        $aggregate->expects($this->once())
+            ->method('getId')
+            ->willReturn(1);
+        $aggregate->expects($this->once())
+            ->method('setChild')
+            ->with($this->equalTo($child));
+
+        $meta = $this->createMock(Meta::class);
+        $meta->expects($this->any())
+            ->method('getTable')
+            ->willReturn(new Table('owner_aggregates'));
+        $meta->expects($this->any())
+            ->method('getColumns')
+            ->willReturn(new Columns\Collection([
+                'id'   => new Column('aggregateId', primary: true, getter: 'getId', setter: 'setId'),
+                'name' => new Column(getter: 'getName', setter: 'setName'),
+            ]));
+        $meta->expects($this->any())
+            ->method('getPersistables')
+            ->willReturn(new Entities\Collection([
+                'child' => new Entity(ChildEntity::class, getter: 'getChild', setter: 'setChild'),
+            ]));
+
+        $childMeta = $this->createMock(Meta::class);
+        $childMeta->expects($this->any())
+            ->method('getTable')
+            ->willReturn(new Table('child_entities', 'id'));
+        $childMeta->expects($this->any())
+            ->method('getColumns')
+            ->willReturn(new Columns\Collection([
+                'id' => new Column(),
+                'name' => new Column(),
+                'aggregateId' => new Column(),
+            ]));
+
+        $database = $this->createMock(Sql::class);
+        $database->expects($this->exactly(2))
+            ->method('getQueryRow')
+            ->willReturnCallback(function (
+                $sql,
+                $params,
+                $style,
+                $class = null) use ($aggregate, $child) {
+                if (str_contains($class, 'OwnerAggregate')) {
+                    $result = $aggregate;
+                } elseif (str_contains($class, 'ChildEntity')) {
+                    $result = $child;
+                } else {
+                    $result = false;
+                }
+                return $result;
+            });
+        $database->expects($this->exactly(2))
+            ->method('getSelectQuery')
+            ->willReturnCallback(function (Meta $meta, ?string $clause = null) use ($aggregateSql, $childSql) {
+                if ($meta->getTable()->name === 'owner_aggregates') {
+                    $sql = $aggregateSql;
+                } elseif ($meta->getTable()->name === 'child_entities') {
+                    $sql = $childSql;
+                } else {
+                    $sql = null;
+                }
+                return $sql;
+            });
+
+        $metaFactory = $this->createMock(MetaFactory::class);
+        $metaFactory->expects($this->any())
+            ->method('get')
+            ->willReturnCallback(function (string $name) use ($meta, $childMeta) {
+                if (str_contains($name, 'OwnerAggregate')) {
+                    $result = $meta;
+                } elseif (str_contains($name, 'ChildEntity')) {
+                    $result = $childMeta;
+                } else {
+                    $result = null;
+                }
+                return $result;
+            });
+
+        $unit   = new Factory($database, $metaFactory);
+        $actual = $unit->getEntityByPrimaryKey(OwnerAggregate::class, 1);
+
+        $this->assertInstanceOf(OwnerAggregate::class, $actual);
+    }
+
     public function testGetEntityByPrimaryKeyWillThrowInvalidArgumentException(): void
     {
         $database    = $this->createMock(Sql::class);
@@ -383,6 +486,12 @@ class FactoryTest extends TestCase
         $meta->expects($this->exactly(3))
             ->method('getTable')
             ->willReturn(new Table('simple_entities', 'id'));
+        $meta->expects($this->any())
+            ->method('getColumns')
+            ->willReturn(new Columns\Collection([
+                'id' => new Column(),
+                'name' => new Column(),
+            ]));
 
         $metaFactory = $this->createMock(MetaFactory::class);
         $metaFactory->expects($this->exactly(3))
@@ -401,6 +510,12 @@ class FactoryTest extends TestCase
         $meta->expects($this->any())
             ->method('getTable')
             ->willReturn(new Table('simple_entities', 'id'));
+        $meta->expects($this->any())
+            ->method('getColumns')
+            ->willReturn(new Columns\Collection([
+                'id'   => new Column(),
+                'name' => new Column(),
+            ]));
 
         $database = $this->createMock(Sql::class);
         $database->expects($this->once())
