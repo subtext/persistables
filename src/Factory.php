@@ -144,10 +144,10 @@ class Factory
         if ($persistable instanceof Collection) {
             $isInsert = $persistable->reduce(
                 Closure::fromCallable([$this, 'isPersistableInsert']),
-                false
+                true
             );
         } else {
-            $isInsert = $this->isPersistableInsert($persistable);
+            $isInsert = $this->isPersistableInsert(true, $persistable);
         }
         return $isInsert;
     }
@@ -165,10 +165,10 @@ class Factory
         if ($persistable instanceof Collection) {
             $isUpdate = $persistable->reduce(
                 Closure::fromCallable([$this, 'isPersistableUpdate']),
-                false
+                true
             );
         } else {
-            $isUpdate = $this->isPersistableUpdate($persistable);
+            $isUpdate = $this->isPersistableUpdate(true, $persistable);
         }
         return $isUpdate;
     }
@@ -355,7 +355,7 @@ class Factory
             foreach ($object->getModified()->getNames() as $property) {
                 if ($cols->has($property)) {
                     $column = $cols->get($property);
-                    if ($excludePrimaryKey && $column->primary) {
+                    if ($excludePrimaryKey && $this->isPrimaryKey($property, $meta)) {
                         continue;
                     }
                     $method              = $this->accessorName($object, $property);
@@ -364,7 +364,7 @@ class Factory
             }
         } else {
             foreach ($cols as $property => $column) {
-                if (($excludePrimaryKey && $column->primary) || $column->readonly) {
+                if (($excludePrimaryKey && $this->isPrimaryKey($property, $meta)) || $column->readonly) {
                     continue;
                 }
                 $method              = $this->accessorName($object, $property);
@@ -385,7 +385,26 @@ class Factory
      */
     protected function getPrimaryKey(Persistable $object): string
     {
-        return $this->meta->get($object::class)->getTable()->primaryKey;
+        return $this->resolvePrimaryKeyName($this->meta->get($object::class));
+    }
+
+    protected function isPrimaryKey(string $property, Meta $meta): bool
+    {
+        return $property === $this->resolvePrimaryKeyName($meta);
+    }
+
+    protected function resolvePrimaryKeyName(Meta $meta): string
+    {
+        if (($key = $meta->getTable()->primaryKey) === null) {
+            foreach ($meta->getColumns() as $property => $column) {
+                if ($column->primary) {
+                    // @todo: allow for multiple compound keys
+                    $key = $column->name ?? $property;
+                    break;
+                }
+            }
+        }
+        return $key ?? '';
     }
 
     /**
@@ -432,13 +451,13 @@ class Factory
     /**
      * Determine if the object instance should be inserted into the database.
      *
+     * @param bool $carry Used with a collection and the reduce method
      * @param Persistable $object The persistable instance object to evaluate
-     * @param bool $carry         Used with a collection and the reduce method
      *
      * @return bool
      * @throws ReflectionException
      */
-    private function isPersistableInsert(Persistable $object, bool $carry = true): bool
+    private function isPersistableInsert(bool $carry, Persistable $object): bool
     {
         if ($carry) {
             $carry = is_null($this->getPrimaryKeyValue($object));
@@ -456,7 +475,7 @@ class Factory
      * @return bool
      * @throws ReflectionException
      */
-    private function isPersistableUpdate(Persistable $object, bool $carry = true): bool
+    private function isPersistableUpdate(bool $carry, Persistable $object): bool
     {
         if ($carry) {
             if (!is_null($this->getPrimaryKeyValue($object))) {
@@ -474,7 +493,6 @@ class Factory
      */
     private function getPersistables(Persistable $object, Meta $meta, PersistOrder $order): ?Collection
     {
-
         $entities  = ($meta->getPersistables() ?? new Entities\Collection());
         $childMeta = $entities->filter(function (Entity $entity) use ($order) {
             return $entity->order === $order;
@@ -527,7 +545,12 @@ class Factory
     private function recursivelyHydrate(Persistable $persistable, Meta $meta): void
     {
         foreach ($meta->getPersistables() ?? [] as $entity) {
-            $childMeta = $this->meta->get($entity->class);
+            if (is_subclass_of($entity->class, Collection::class)) {
+                $instance  = new ($entity->class)();
+                $childMeta = $this->meta->get($instance->getEntityClass());
+            } else {
+                $childMeta = $this->meta->get($entity->class);
+            }
             if ($entity->order === PersistOrder::BEFORE) {
                 $primaryKey = $entity->foreign ?? $childMeta->getTable()->primaryKey;
                 $getter     = $this->accessorName($persistable, $primaryKey);
@@ -543,7 +566,11 @@ class Factory
                 $setter     = $entity->setter;
                 if ($entity->collection) {
                     $child = new ($entity->class)();
-                    $this->getEntityCollection($query, $child, []);
+                    $this->getEntityCollection(
+                        $query,
+                        $child,
+                        [$this->getPrimaryKeyValue($persistable)]
+                    );
                 } else {
                     $child = $this->db->getQueryRow(
                         $query,

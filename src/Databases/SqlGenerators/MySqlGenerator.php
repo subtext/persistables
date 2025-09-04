@@ -4,7 +4,9 @@ namespace Subtext\Persistables\Databases\SqlGenerators;
 
 use Subtext\Collections\Text;
 use Subtext\Persistables\Databases\Attributes\Column;
+use Subtext\Persistables\Databases\Attributes\Columns;
 use Subtext\Persistables\Databases\Attributes\Joins\Collection;
+use Subtext\Persistables\Databases\Attributes\Table;
 use Subtext\Persistables\Databases\Meta;
 use Subtext\Persistables\Databases\SqlGenerator;
 use Subtext\Persistables\Modifications;
@@ -43,7 +45,7 @@ class MySqlGenerator implements SqlGenerator
         $fields  = new Text();
         foreach ($columns as $property => $column) {
             $tableName = $column->table ?? $table->name;
-            if (($property === $column->name) || is_null($column->name)) {
+            if ($property === $column->name || is_null($column->name)) {
                 $fields->append(
                     $this->formatColumnName($tableName, $column->name ?? $property)
                 );
@@ -70,9 +72,13 @@ class MySqlGenerator implements SqlGenerator
     public function getInsertQuery(Meta $meta, int $rows = 1): string
     {
         $table   = $meta->getTable();
-        $columns = $meta->getColumns()->filter(function (Column $column) {
-            return $column->readonly === false;
-        });
+        $columns = new Columns\Collection();
+        foreach ($meta->getColumns() as $property => $column) {
+            if ($this->isNotReadOnlyAndNotPrimaryKey($property, $column, $table)) {
+                $columns->set($property, $column);
+            }
+        }
+        unset($column);
         $names = [];
         foreach ($columns as $property => $column) {
             $names[] = sprintf('`%s`', $column->name ?? $property);
@@ -232,5 +238,14 @@ class MySqlGenerator implements SqlGenerator
             $field .= ' = ?';
         }
         return $field;
+    }
+
+    private function isNotReadOnlyAndNotPrimaryKey(
+        string $property,
+        Column $column,
+        Table $table
+    ): bool {
+        $notPk = ($column->primary === false && $property !== $table->primaryKey);
+        return ($column->readonly === false) && $notPk;
     }
 }

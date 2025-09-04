@@ -17,7 +17,7 @@ abstract class Collection extends Collections\Collection
 
     protected function validate(mixed $value): void
     {
-        if (!is_object($value) || !($value::class === $this->getEntityClass())) {
+        if (!is_object($value) || !(is_a($value, $this->getEntityClass()))) {
             throw new InvalidArgumentException(sprintf(
                 "Value must be an instance of %s",
                 $this->getEntityClass()

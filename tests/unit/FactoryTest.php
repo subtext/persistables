@@ -3,6 +3,7 @@
 namespace Subtext\Persistables\Tests\Unit;
 
 use ArrayIterator;
+use Cassandra\Aggregate;
 use DateTime;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -20,6 +21,9 @@ use Subtext\Persistables\Databases\Meta\Factory as MetaFactory;
 use Subtext\Persistables\Databases\Sql;
 use Subtext\Persistables\Factory;
 use Subtext\Persistables\Modifications;
+use Subtext\Persistables\Tests\Unit\Fixtures\ChildEntity;
+use Subtext\Persistables\Tests\Unit\Fixtures\Children;
+use Subtext\Persistables\Tests\Unit\Fixtures\ComplexAggregate;
 use Subtext\Persistables\Tests\Unit\Fixtures\SimpleEntity;
 use InvalidArgumentException;
 use Subtext\Persistables\Tests\Unit\Fixtures\WithEntityExplicit;
@@ -151,6 +155,122 @@ class FactoryTest extends TestCase
 
         $this->assertInstanceOf(WithEntityExplicit::class, $actual);
         $this->assertInstanceOf(SimpleEntity::class, $actual->getChild());
+    }
+
+    public function testGetEntityByPrimaryKeyWithComplexAggregate(): void
+    {
+        $meta = $this->createMock(Meta::class);
+        $meta->expects($this->any())
+            ->method('getTable')
+            ->willReturn(new Table('complex_aggregates', 'id'));
+        $meta->expects($this->any())
+            ->method('getColumns')
+            ->willReturn(new Columns\Collection([
+                'id'       => new Column(getter: 'getId', setter: 'setId'),
+                'entityId' => new Column(getter: 'getEntityId', setter: 'setEntityId'),
+            ]));
+        $meta->expects($this->any())
+            ->method('getPersistables')
+            ->willReturn(new Entities\Collection([
+                'entity' => new Entity(
+                    SimpleEntity::class,
+                    'entityId',
+                    true,
+                    getter: 'getEntity',
+                    setter: 'setEntity',
+                    order: PersistOrder::BEFORE
+                ),
+                'children' => new Entity(
+                    Children::class,
+                    'aggregateId',
+                    collection: true,
+                    getter: 'getChildren',
+                    setter: 'setChildren'
+                ),
+            ]));
+
+        $entityMeta = $this->getMetaDataMock();
+
+        $entity = $this->createMock(SimpleEntity::class);
+        $entity->expects($this->any())
+            ->method('getId')
+            ->willReturn(5);
+        $entity->expects($this->any())
+            ->method('getName')
+            ->willReturn('Omega');
+
+        $childMeta = $this->createMock(Meta::class);
+        $childMeta->expects($this->any())
+            ->method('getTable')
+            ->willReturn(new Table('child_entities'));
+        $childMeta->expects($this->any())
+            ->method('getColumns')
+            ->willReturn(new Columns\Collection([
+                'id'          => new Column(primary: true),
+                'name'        => new Column(),
+                'aggregateId' => new Column(),
+            ]));
+
+        $child1 = $this->createMock(ChildEntity::class);
+        $child2 = $this->createMock(ChildEntity::class);
+        $child3 = $this->createMock(ChildEntity::class);
+
+        $aggregate = $this->createMock(ComplexAggregate::class);
+        $aggregate->expects($this->any())
+            ->method('getId')
+            ->willReturn(1);
+        $aggregate->expects($this->any())
+            ->method('getEntityId')
+            ->willReturn(5);
+        $aggregate->expects($this->once())
+            ->method('setEntity')
+            ->with($this->equalTo($entity));
+        $aggregate->expects($this->once())
+            ->method('setChildren')
+            ->with($this->equalTo(new Children([$child1, $child2, $child3])));
+
+        $database = $this->createMock(Sql::class);
+        $database->expects($this->exactly(3))
+            ->method('getSelectQuery')
+            ->willReturn('SELECT * FROM `table`');
+        $database->expects($this->exactly(2))
+            ->method('getQueryRow')
+            ->willReturnCallback(function (
+                string $sql,
+                array $data,
+                int $style,
+                ?string $class = null
+            ) use ($entity, $aggregate) {
+                if ($class === SimpleEntity::class) {
+                    return $entity;
+                }
+                return $aggregate;
+            });
+        $database->expects($this->once())
+            ->method('getQueryData')
+            ->willReturn([$child1, $child2, $child3]);
+
+        $metaFactory = $this->createMock(MetaFactory::class);
+        $metaFactory->expects($this->any())
+            ->method('get')
+            ->willReturnCallback(function (string $name) use ($meta, $childMeta, $entityMeta) {
+                if (str_contains($name, 'ComplexAggregate')) {
+                    $result = $meta;
+                } elseif (str_contains($name, 'SimpleEntity')) {
+                    $result = $entityMeta;
+                } elseif (str_contains($name, 'ChildEntity')) {
+                    $result = $childMeta;
+                } else {
+                    $result = null;
+                }
+                return $result;
+            });
+
+        $unit   = new Factory($database, $metaFactory);
+
+        $actual = $unit->getEntityByPrimaryKey(ComplexAggregate::class, 1);
+
+        $this->assertInstanceOf(ComplexAggregate::class, $actual);
     }
 
     public function testGetEntityByPrimaryKeyWillThrowInvalidArgumentException(): void
@@ -608,6 +728,119 @@ class FactoryTest extends TestCase
         $unit = new Factory($database, $metaFactory);
 
         $unit->persist($collection);
+    }
+
+    public function testPersistWillRecursivelyPersistChildren(): void
+    {
+        $meta = $this->createMock(Meta::class);
+        $meta->expects($this->any())
+            ->method('getTable')
+            ->willReturn(new Table('complex_aggregates', 'id'));
+        $meta->expects($this->any())
+            ->method('getColumns')
+            ->willReturn(new Columns\Collection([
+                'id'       => new Column(getter: 'getId', setter: 'setId'),
+                'entityId' => new Column(getter: 'getEntityId', setter: 'setEntityId'),
+            ]));
+        $meta->expects($this->any())
+            ->method('getPersistables')
+            ->willReturn(new Entities\Collection([
+                'entity' => new Entity(
+                    SimpleEntity::class,
+                    'entityId',
+                    true,
+                    getter: 'getEntity',
+                    setter: 'setEntity',
+                    order: PersistOrder::BEFORE
+                ),
+                'children' => new Entity(
+                    Children::class,
+                    'aggregateId',
+                    collection: true,
+                    getter: 'getChildren',
+                    setter: 'setChildren'
+                ),
+            ]));
+
+        $entityMeta = $this->getMetaDataMock();
+
+        $childMeta = $this->createMock(Meta::class);
+        $childMeta->expects($this->any())
+            ->method('getTable')
+            ->willReturn(new Table('child_entities'));
+        $childMeta->expects($this->any())
+            ->method('getColumns')
+            ->willReturn(new Columns\Collection([
+                'id' => new Column(primary: true, getter: 'getId', setter: 'setId'),
+                'name' => new Column(getter: 'getName', setter: 'setName'),
+            ]));
+
+        $entity = $this->createMock(SimpleEntity::class);
+        $entity->expects($this->any())
+            ->method('getId')
+            ->willReturn(null);
+        $entity->expects($this->once())
+            ->method('setId');
+
+        $child1 = $this->createMock(ChildEntity::class);
+        $child1->expects($this->any())
+            ->method('getId')
+            ->willReturn(null);
+        $child2 = $this->createMock(ChildEntity::class);
+        $child2->expects($this->any())
+            ->method('getId')
+            ->willReturn(null);
+        $child3 = $this->createMock(ChildEntity::class);
+        $child3->expects($this->any())
+            ->method('getId')
+            ->willReturn(null);
+
+        $children = $this->createMock(Children::class);
+        $children->expects($this->once())
+            ->method('reduce')
+            ->willReturn(true);
+        $children->expects($this->any())
+            ->method('getEntityClass')
+            ->willReturn(ChildEntity::class);
+        $children->expects($this->any())
+            ->method('count')
+            ->willReturn(3);
+        $children->expects($this->any())
+            ->method('getIterator')
+            ->willReturn(new ArrayIterator([$child1, $child2, $child3]));
+
+        $aggregate = $this->createMock(ComplexAggregate::class);
+        $aggregate->expects($this->any())
+            ->method('getEntity')
+            ->willReturn($entity);
+        $aggregate->expects($this->any())
+            ->method('getChildren')
+            ->willReturn($children);
+
+        $database = $this->createMock(Sql::class);
+        $database->expects($this->exactly(3))
+            ->method('getIdForInsert')
+            ->willReturn(1);
+
+        $metaFactory = $this->createMock(MetaFactory::class);
+        $metaFactory->expects($this->any())
+            ->method('get')
+            ->willReturnCallback(function (string $name) use ($meta, $childMeta, $entityMeta) {
+                if (str_contains($name, 'ComplexAggregate')) {
+                    $result = $meta;
+                } elseif (str_contains($name, 'SimpleEntity')) {
+                    $result = $entityMeta;
+                } elseif (str_contains($name, 'ChildEntity')) {
+                    $result = $childMeta;
+                } else {
+                    $result = $entityMeta;
+                }
+                return $result;
+            });
+
+        $factory = new Factory($database, $metaFactory);
+
+        $factory->persist($aggregate);
     }
 
     public function testPersistInsertWillThrowRuntimeException(): void

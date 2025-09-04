@@ -203,7 +203,7 @@ class Factory
     private function validateClass(string $class): void
     {
         if (class_exists($class)) {
-            if (is_subclass_of($class, Persistable::class) || is_subclass_of($class, Collection::class)) {
+            if (is_subclass_of($class, Persistable::class) || is_subclass_of($class, PersistableCollection::class)) {
                 return;
             }
         }

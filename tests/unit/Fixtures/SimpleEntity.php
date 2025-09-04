@@ -37,6 +37,9 @@ class SimpleEntity extends Persistable
 
     public function jsonSerialize(): mixed
     {
-        return ['id' => $this->id, 'name' => $this->name];
+        return [
+            'id'   => $this->getId(),
+            'name' => $this->getName(),
+        ];
     }
 }
