@@ -17,4 +17,13 @@
             <directory suffix=".php">src</directory>
         </include>
     </source>
+    <coverage includeUncoveredFiles="true">
+        <report>
+            <html outputDirectory="tests/coverage" />
+            <clover outputFile="clover/clover.xml" />
+        </report>
+    </coverage>
+    <php>
+        <ini name="date.timezone" value="UTC" />
+    </php>
 </phpunit>

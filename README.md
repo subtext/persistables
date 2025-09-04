@@ -1,4 +1,5 @@
 # Subtext\Persistables
+![Run Unit Tests](https://github.com/subtext/persistables/actions/workflows/tests-unit.yml/badge.svg)
 
 A lightweight PHP library designed to abstract and unify the persistence of 
 domain objects across SQL databases. Inspired by the principles of ORMs, but 

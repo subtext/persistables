@@ -46,7 +46,8 @@ Thumbs.db
 *.cache
 
 # Coverage reports
-coverage/
+/tests/coverage/
+/clover/
 
 # Build artifacts
 /build/
