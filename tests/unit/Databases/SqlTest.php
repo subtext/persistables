@@ -334,6 +334,9 @@ class SqlTest extends TestCase
     public function testGetIdForInsertWillThrowExceptionForBadQuery(): void
     {
         $sql  = "SELECT * FROM `table`";
+        $this->connection->expects($this->once())
+            ->method('getPdo')
+            ->willReturn($this->pdo);
         $unit = Sql::getInstance($this->connection, true);
         $this->expectException(InvalidArgumentException::class);
         $unit->getIdForInsert($sql);
@@ -366,6 +369,9 @@ class SqlTest extends TestCase
     public function testGetNumRowsAffectedWillThrowExceptionForBadQuery(): void
     {
         $sql  = "SELECT * FROM `table`";
+        $this->connection->expects($this->once())
+            ->method('getPdo')
+            ->willReturn($this->pdo);
         $unit = Sql::getInstance($this->connection, true);
         $this->expectException(InvalidArgumentException::class);
         $unit->getNumRowsAffectedForUpdate($sql);
