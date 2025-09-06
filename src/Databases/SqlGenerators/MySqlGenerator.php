@@ -4,7 +4,9 @@ namespace Subtext\Persistables\Databases\SqlGenerators;
 
 use Subtext\Collections\Text;
 use Subtext\Persistables\Databases\Attributes\Column;
+use Subtext\Persistables\Databases\Attributes\Columns;
 use Subtext\Persistables\Databases\Attributes\Joins\Collection;
+use Subtext\Persistables\Databases\Attributes\Table;
 use Subtext\Persistables\Databases\Meta;
 use Subtext\Persistables\Databases\SqlGenerator;
 use Subtext\Persistables\Modifications;
@@ -12,10 +14,10 @@ use Subtext\Persistables\Modifications;
 class MySqlGenerator implements SqlGenerator
 {
     private static ?self $instance = null;
-    public const string SQL_SELECT = 'SELECT %s FROM %s WHERE %s';
-    public const string SQL_INSERT = 'INSERT INTO `%s` (%s) VALUES XXX';
-    public const string SQL_UPDATE = 'UPDATE `%s` SET %s WHERE `%s` = ?';
-    public const string SQL_DELETE = 'DELETE FROM `%s` WHERE `%s` ';
+    public const string SQL_SELECT = "SELECT %s\nFROM %s\nWHERE %s";
+    public const string SQL_INSERT = "INSERT INTO `%s` (%s)\nVALUES XXX";
+    public const string SQL_UPDATE = "UPDATE `%s` SET %s\nWHERE `%s` = ?";
+    public const string SQL_DELETE = "DELETE FROM `%s`\nWHERE `%s`";
     public const string SQL_COLUMN = '`%s`.`%s`';
 
     private function __construct()
@@ -43,9 +45,9 @@ class MySqlGenerator implements SqlGenerator
         $fields  = new Text();
         foreach ($columns as $property => $column) {
             $tableName = $column->table ?? $table->name;
-            if (($property === $column->name) || is_null($column->name)) {
+            if ($property === $column->name || is_null($column->name)) {
                 $fields->append(
-                    $this->formatColumnName($tableName, $column->name)
+                    $this->formatColumnName($tableName, $column->name ?? $property)
                 );
             } else {
                 $fields->append($this->formatColumnName(
@@ -59,30 +61,38 @@ class MySqlGenerator implements SqlGenerator
             self::SQL_SELECT,
             $fields->concat(",\n"),
             sprintf(
-                "`%s`\n%s",
+                "`%s`%s",
                 $table->name,
-                $joins ? $this->getJoinClauses($joins, $table->name)->concat("\n") : ''
+                $joins ? "\n" . $this->getJoinClauses($joins, $table->name)->concat("\n") : ''
             ),
-            sprintf('`%s` = ?', $table->primaryKey)
+            $clause ?? sprintf(self::SQL_COLUMN . ' = ?', $table->name, $table->primaryKey)
         );
     }
 
     public function getInsertQuery(Meta $meta, int $rows = 1): string
     {
         $table   = $meta->getTable();
-        $columns = $meta->getColumns()->filter(function (Column $column) {
-            return $column->readonly === false;
-        });
+        $columns = new Columns\Collection();
+        foreach ($meta->getColumns() as $property => $column) {
+            if ($this->isNotReadOnlyAndNotPrimaryKey($property, $column, $table)) {
+                $columns->set($property, $column);
+            }
+        }
+        unset($column);
+        $names = [];
+        foreach ($columns as $property => $column) {
+            $names[] = sprintf('`%s`', $column->name ?? $property);
+        }
         return $this->formatInsert(
             sprintf(
                 self::SQL_INSERT,
                 $table->name,
-                trim(implode(', ', $columns->getKeys()))
+                trim(implode(', ', $names))
             ),
             $rows,
             $columns->count()
         ) . sprintf(
-            ' ON DUPLICATE KEY UPDATE %s = LAST_INSERT_ID(%s)',
+            "\n" . 'ON DUPLICATE KEY UPDATE `%s` = LAST_INSERT_ID(`%s`)',
             $table->primaryKey,
             $table->primaryKey
         );
@@ -122,11 +132,11 @@ class MySqlGenerator implements SqlGenerator
         $table = $meta->getTable();
         $query = sprintf(self::SQL_DELETE, $table->name, $table->primaryKey);
         if ($count === 1) {
-            $query .= '= ?';
+            $query .= ' = ?';
         } else {
-            $query .= 'IN (XXX)';
+            $query = $this->formatIn($query . ' IN (XXX)', $count);
         }
-        return $this->formatIn($query, $count);
+        return $query;
     }
 
     /**
@@ -228,5 +238,14 @@ class MySqlGenerator implements SqlGenerator
             $field .= ' = ?';
         }
         return $field;
+    }
+
+    private function isNotReadOnlyAndNotPrimaryKey(
+        string $property,
+        Column $column,
+        Table $table
+    ): bool {
+        $notPk = ($column->primary === false && $property !== $table->primaryKey);
+        return ($column->readonly === false) && $notPk;
     }
 }

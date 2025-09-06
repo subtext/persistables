@@ -1,0 +1,63 @@
+name: Run Unit Tests
+
+on:
+  pull_request:
+    types:
+      - "opened"
+      - "reopened"
+      - "synchronize"
+    branches:
+      - master
+
+jobs:
+  phpunit_test:
+    name: "Unit Test"
+    runs-on: ubuntu-22.04
+    env:
+      XDEBUG_MODE: coverage
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker Compose Up
+        run: docker compose up -d
+
+      - name: Docker Compose PS
+        run: docker compose ps
+
+      - name: Run Composer Install
+        run: docker exec persistables-php-1 composer install
+
+      - name: Run Unit Tests
+        run: docker exec persistables-php-1 vendor/bin/phpunit
+
+      - name: Install Xmllint
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+
+      - name: Check Coverage Threshold
+        run: |
+          FILE=clover/clover.xml
+          
+          if [ ! -f "$FILE" ]; then
+            echo "❌ Coverage report not found at $FILE"
+            exit 1
+          fi
+          
+          COVERED=$(xmllint --xpath 'string(//project/metrics/@coveredstatements)' "$FILE")
+          TOTAL=$(xmllint --xpath 'string(//project/metrics/@statements)' "$FILE")
+          
+          if [ -z "$COVERED" ] || [ -z "$TOTAL" ] || [ "$TOTAL" -eq 0 ]; then
+            echo "⚠️ Error parsing coverage"
+            exit 1
+          fi
+          PERCENT=$(awk "BEGIN {printf \"%.2f\", ($COVERED/$TOTAL) * 100 }")                    
+          
+          # Check threshold
+          THRESHOLD=90
+          if (( $(awk "BEGIN {print ($PERCENT < $THRESHOLD)}") )); then
+            echo "❌ Coverage $PERCENT% is below required $THRESHOLD%"
+            exit 1
+          else
+            echo "✅ Coverage $PERCENT% meets threshold"
+          fi
+

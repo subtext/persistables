@@ -16,7 +16,9 @@ abstract class Persistable implements JsonSerializable
      */
     public function getModified(): Modifications\Collection
     {
-        $this->initModifications();
+        if ($this->modified === null) {
+            $this->modified = new Modifications\Collection();
+        }
         return $this->modified;
     }
 
@@ -27,8 +29,7 @@ abstract class Persistable implements JsonSerializable
      */
     public function resetModified(): void
     {
-        $this->initModifications();
-        $this->modified->empty();
+        $this->getModified()->empty();
     }
 
     /**
@@ -42,7 +43,7 @@ abstract class Persistable implements JsonSerializable
             $name        = $modification->getName();
             $this->$name = $modification->getOldValue();
         }
-        $this->modified->empty();
+        $this->resetModified();
     }
 
     /**
@@ -62,23 +63,10 @@ abstract class Persistable implements JsonSerializable
      */
     protected function modify(string $name, mixed $new): void
     {
-        $this->initModifications();
         $old = $this->$name;
         if ($old !== $new) {
-            $this->modified->append(Modification::from($name, $old, $new));
+            $this->getModified()->append(Modification::from($name, $old, $new));
             $this->$name = $new;
-        }
-    }
-
-    /**
-     * Ensure the modifications collection exists.
-     *
-     * @return void
-     */
-    protected function initModifications(): void
-    {
-        if ($this->modified === null) {
-            $this->modified = new Modifications\Collection();
         }
     }
 }
