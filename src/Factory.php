@@ -391,13 +391,13 @@ class Factory
 
     protected function getPrimaryKeyProperty(Meta $meta): string
     {
-        $pk = $meta->getTable()->primaryKey;
+        $pk       = $meta->getTable()->primaryKey;
         $property = '';
         foreach ($meta->getColumns() as $key => $column) {
             if ($pk === null && $column->primary) {
                 $property = $key;
                 break;
-            } else if ($pk !== null && ($column->name ?? $key) === $pk) {
+            } elseif ($pk !== null && ($column->name ?? $key) === $pk) {
                 $property = $key;
                 break;
             }

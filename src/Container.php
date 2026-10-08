@@ -4,7 +4,8 @@ namespace Subtext\Persistables;
 
 use InvalidArgumentException;
 
-class Container extends Collection {
+class Container extends Collection
+{
     public function getEntityClass(): string
     {
         return Collection::class;

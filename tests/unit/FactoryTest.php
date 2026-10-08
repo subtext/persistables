@@ -267,7 +267,7 @@ class FactoryTest extends TestCase
                 return $result;
             });
 
-        $unit   = new Factory($database, $metaFactory);
+        $unit = new Factory($database, $metaFactory);
 
         $actual = $unit->getEntityByPrimaryKey(ComplexAggregate::class, 1);
 
@@ -321,8 +321,8 @@ class FactoryTest extends TestCase
         $childMeta->expects($this->any())
             ->method('getColumns')
             ->willReturn(new Columns\Collection([
-                'id' => new Column(),
-                'name' => new Column(),
+                'id'          => new Column(),
+                'name'        => new Column(),
                 'aggregateId' => new Column(),
             ]));
 
@@ -333,7 +333,8 @@ class FactoryTest extends TestCase
                 $sql,
                 $params,
                 $style,
-                $class = null) use ($aggregate, $child) {
+                $class = null
+            ) use ($aggregate, $child) {
                 if (str_contains($class, 'OwnerAggregate')) {
                     $result = $aggregate;
                 } elseif (str_contains($class, 'ChildEntity')) {
@@ -489,7 +490,7 @@ class FactoryTest extends TestCase
         $meta->expects($this->any())
             ->method('getColumns')
             ->willReturn(new Columns\Collection([
-                'id' => new Column(),
+                'id'   => new Column(),
                 'name' => new Column(),
             ]));
 
@@ -886,7 +887,7 @@ class FactoryTest extends TestCase
         $childMeta->expects($this->any())
             ->method('getColumns')
             ->willReturn(new Columns\Collection([
-                'id' => new Column(primary: true, getter: 'getId', setter: 'setId'),
+                'id'   => new Column(primary: true, getter: 'getId', setter: 'setId'),
                 'name' => new Column(getter: 'getName', setter: 'setName'),
             ]));
 

@@ -56,8 +56,8 @@ class OwnerAggregate extends Persistable
     public function jsonSerialize(): mixed
     {
         return (object) [
-            'id' => $this->getId(),
-            'name' => $this->getName(),
+            'id'    => $this->getId(),
+            'name'  => $this->getName(),
             'child' => $this->getChild(),
         ];
     }

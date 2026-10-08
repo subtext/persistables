@@ -15,24 +15,21 @@ class ContainerTest extends TestCase
     {
         $unit = new Container();
 
-        $collection = new class() extends Collection
-        {
+        $collection = new class () extends Collection {
             public function getEntityClass(): string
             {
                 return SimpleEntity::class;
             }
         };
 
-        $persistable = new class() extends Persistable
-        {
+        $persistable = new class () extends Persistable {
             public function jsonSerialize(): mixed
             {
                 return (object) [];
             }
         };
 
-        $foobar = new class()
-        {};
+        $foobar = new class () {};
 
         $this->assertCount(0, $unit);
         $unit->append($collection);
