@@ -6,4 +6,8 @@ RUN curl -sSLf -o /usr/local/bin/install-php-extensions \
 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions \
 && chmod +x /usr/local/bin/install-php-extensions \
 && install-php-extensions @composer intl mbstring pdo_mysql xdebug zip
-
+RUN cat <<'EOF' >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+xdebug.mode=debug
+xdebug.start_with_request=yes
+xdebug.client_host=host.docker.internal
+EOF
