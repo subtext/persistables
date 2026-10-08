@@ -1,0 +1,34 @@
+#!/usr/bin/env php
+<?php
+
+namespace Subtext\Persistables;
+
+use Subtext\Persistables\Console\Commands;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Input\ArgvInput;
+use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Style\SymfonyStyle;
+use Throwable;
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+try {
+    $root = dirname(__DIR__);
+    if (str_ends_with($root, '/vendor')) {
+        $root = dirname(__DIR__, 2);
+    }
+    $app = new Application('Subtext Persistables', '1.0.2');
+    $app->addCommands([
+            new Commands\Schemas\Validate($root)
+    ]);
+    $app->run();
+} catch (Throwable $e) {
+    $io = new SymfonyStyle(new ArgvInput(), new ConsoleOutput());
+    $io->error(['Error:', $e->getMessage()]);
+    if ($io->isVerbose()) {
+        $io->newLine();
+        $io->writeln(sprintf('<comment>%s:%d</comment>', $e->getFile(), $e->getLine()));
+        $io->writeln($e->getTraceAsString());
+    }
+    exit(1);
+}

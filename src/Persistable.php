@@ -2,6 +2,7 @@
 
 namespace Subtext\Persistables;
 
+use InvalidArgumentException;
 use JsonSerializable;
 
 abstract class Persistable implements JsonSerializable
@@ -10,7 +11,7 @@ abstract class Persistable implements JsonSerializable
     protected ?Modifications\Collection $modified = null;
 
     /**
-     * Returns a collection of modifications, if any exist.
+     * Returns a collection of modifications if any exist.
      *
      * @return Modifications\Collection
      */
@@ -39,7 +40,7 @@ abstract class Persistable implements JsonSerializable
      */
     public function rollbackModifications(): void
     {
-        foreach ($this->modified as $modification) {
+        foreach ($this->getModified() as $modification) {
             $name        = $modification->getName();
             $this->$name = $modification->getOldValue();
         }
@@ -63,6 +64,13 @@ abstract class Persistable implements JsonSerializable
      */
     protected function modify(string $name, mixed $new): void
     {
+        if (!property_exists($this, $name)) {
+            throw new InvalidArgumentException(sprintf(
+                'Property "%s" does not exist in %s',
+                $name,
+                get_class($this)
+            ));
+        }
         $old = $this->$name;
         if ($old !== $new) {
             $this->getModified()->append(Modification::from($name, $old, $new));
