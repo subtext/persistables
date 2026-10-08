@@ -17,7 +17,7 @@ class Country extends Persistable
     #[Column(limit: 196, nullable: false, unique: true, uqGroup: 'countryName')]
     protected ?string $name = null;
 
-    #[Column(type: Type::CHAR, limit: 2, nullable: false, unique: true, uqGroup: 'countryName')]
+    #[Column(type: Type::CHARACTER, limit: 2, nullable: false, unique: true, uqGroup: 'countryName')]
     protected ?string $code = null;
 
     public function __construct()

@@ -25,7 +25,7 @@ class MySqlGenerator implements SqlGenerator
     }
 
     /**
-     * Returns singleton instance of the generator.
+     * Returns a singleton instance of the generator.
      *
      * @return SqlGenerator
      */
@@ -139,6 +139,44 @@ class MySqlGenerator implements SqlGenerator
         return $query;
     }
 
+    public function getPrimaryKeyQuery(string $tableName): string
+    {
+        return sprintf(
+            'SHOW KEYS FROM `%s` WHERE Key_name = \'PRIMARY\'',
+            $tableName
+        );
+    }
+
+    public function getColumnDefinitionsQuery(string $tableName): string
+    {
+        $sql = <<<SQL
+        SELECT COLUMN_NAME AS `name`,
+               DATA_TYPE AS `type`,
+               IF(IS_NULLABLE = 'YES', 1, 0) AS `nullable`,
+               CASE
+                   WHEN EXTRA LIKE '%%auto_increment%%' THEN 1
+               END AS `increment`,
+               CHARACTER_MAXIMUM_LENGTH AS `length`,
+               NUMERIC_PRECISION AS `precision`,
+               NUMERIC_SCALE AS `scale`,
+               CASE
+                   WHEN COLUMN_KEY = 'UNI' THEN 1
+               END AS `unique`,
+               CASE
+                   WHEN COLUMN_KEY = 'MUL' THEN 1
+               END AS `index`,
+               CASE
+                   WHEN COLUMN_TYPE LIKE '%unsigned' THEN 1
+               END AS `unsigned`,
+               COLUMN_DEFAULT AS `default`,
+               IF (COLUMN_DEFAULT = 'NULL', 1, 0) AS `nullDefault`
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = '%s'
+        SQL;
+        return sprintf($sql, $tableName);
+    }
+
     /**
      * Format a snippet of SQL code to perform a JOIN operation.
      *
@@ -170,7 +208,7 @@ class MySqlGenerator implements SqlGenerator
 
     /**
      * Format an insert query with multiple rows of insert data. The params data
-     * is modified to be a single array of all the data to be inserted, so that
+     * is modified to be a single array of all the data to be inserted so that
      * it can be bound to the prepared statement.
      *
      * @param string $query The sql query to be formatted

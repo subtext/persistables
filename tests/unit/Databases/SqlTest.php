@@ -333,7 +333,7 @@ class SqlTest extends TestCase
 
     public function testGetIdForInsertWillThrowExceptionForBadQuery(): void
     {
-        $sql  = "SELECT * FROM `table`";
+        $sql = "SELECT * FROM `table`";
         $this->connection->expects($this->once())
             ->method('getPdo')
             ->willReturn($this->pdo);
@@ -368,7 +368,7 @@ class SqlTest extends TestCase
 
     public function testGetNumRowsAffectedWillThrowExceptionForBadQuery(): void
     {
-        $sql  = "SELECT * FROM `table`";
+        $sql = "SELECT * FROM `table`";
         $this->connection->expects($this->once())
             ->method('getPdo')
             ->willReturn($this->pdo);

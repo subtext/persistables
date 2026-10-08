@@ -9,8 +9,9 @@ use Subtext\Persistables\Databases\SqlGenerators\MySqlGenerator;
 class Connection
 {
     /**
-     * A container for configuring the PDO object. Pass in all of the parameters
+     * A container for configuring the PDO object. Pass in all the parameters
      * and use them as arguments for a callable
+     *
      * @param string $database The database name.
      * @param string $hostname The database host url.
      * @param string $username The database username.
@@ -28,7 +29,8 @@ class Connection
         private readonly string $driver,
         private readonly string $charset,
         private readonly Closure $fn
-    ) {}
+    ) {
+    }
 
     public function getPdo(): ?PDO
     {
@@ -46,8 +48,13 @@ class Connection
         return $pdo;
     }
 
+    public function getDriver(): string
+    {
+        return $this->driver;
+    }
+
     /**
-     * Currently only mysql is supported. Other database drivers will be added
+     * Currently, only mysql is supported. Other database drivers will be added
      * in the future.
      *
      * @return SqlGenerator

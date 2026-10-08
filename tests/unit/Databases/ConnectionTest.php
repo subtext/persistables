@@ -12,12 +12,13 @@ class ConnectionTest extends TestCase
     public function testConnection(): void
     {
         $pdo = $this->createMock(PDO::class);
-        $fn = function(
+        $fn  = function (
             string $db,
             string $host,
             string $user,
             string $pass,
-            string $charset) use ($pdo) {
+            string $charset
+        ) use ($pdo) {
             return $pdo;
         };
 
@@ -45,8 +46,9 @@ class ConnectionTest extends TestCase
             'driver',
             'utf8',
             function () {
-            return null;
-        });
+                return null;
+            }
+        );
 
         $this->assertNull($unit->getPdo());
     }

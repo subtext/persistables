@@ -19,6 +19,7 @@ class Sql implements SqlGenerator
     public const int RESULT_FETCH_ROW = 3;
     public const int RESULT_FETCH_COL = 4;
     private static self $instance;
+    private readonly string $driver;
     private readonly PDO $pdo;
     private readonly SqlGenerator $sqlGenerator;
     private array $statements = [];
@@ -26,8 +27,14 @@ class Sql implements SqlGenerator
 
     private function __construct(Connection $connection)
     {
+        $this->driver       = $connection->getDriver();
         $this->pdo          = $connection->getPdo();
         $this->sqlGenerator = $connection->getSqlGenerator();
+        if ($this->pdo === null) {
+            throw new InvalidArgumentException(
+                'Connection to the database could not be established.'
+            );
+        }
     }
 
     /**
@@ -55,6 +62,11 @@ class Sql implements SqlGenerator
         return self::$instance;
     }
 
+    public function getDriver(): string
+    {
+        return $this->driver;
+    }
+
     public function getSelectQuery(Meta $meta, ?string $clause = null): string
     {
         return $this->sqlGenerator->getSelectQuery($meta, $clause);
@@ -73,6 +85,16 @@ class Sql implements SqlGenerator
     public function getDeleteQuery(Meta $meta, int $count = 1): string
     {
         return $this->sqlGenerator->getDeleteQuery($meta, $count);
+    }
+
+    public function getPrimaryKeyQuery(string $tableName): string
+    {
+        return $this->sqlGenerator->getPrimaryKeyQuery($tableName);
+    }
+
+    public function getColumnDefinitionsQuery(): string
+    {
+        return $this->sqlGenerator->getColumnDefinitionsQuery();
     }
 
     /**
