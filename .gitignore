@@ -10,25 +10,14 @@ Thumbs.db
 
 # PHPStorm / JetBrains IDE
 .idea/
+/.phpstorm.meta.php/
+
 
 # VS Code
 .vscode/
 
 # PHPUnit
 .phpunit.result.cache
-
-# PHPStorm meta files
-/.phpstorm.meta.php/
-
-# Laravel specific (optional, include if you're using Laravel)
-/bootstrap/cache/
-/storage/*.key
-/storage/app/public
-/storage/debugbar
-/storage/framework/cache
-/storage/framework/sessions
-/storage/framework/views
-/storage/logs
 
 # Symfony specific (optional)
 /var/
