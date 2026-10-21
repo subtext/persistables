@@ -2,9 +2,11 @@
 
 namespace Subtext\Persistables\Console\Schemas\Attributes;
 
+use ArrayObject;
 use DirectoryIterator;
 use Generator;
 use InvalidArgumentException;
+use JsonException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionException;
@@ -33,22 +35,32 @@ class Reader
      * @throws ReflectionException
      * @throws SchemaDefinitionException
      */
-    public function getMetaCollection(string $path): Collection
+    public function getMetaCollection(): Collection
     {
-        if (!file_exists($path)) {
-            throw new InvalidArgumentException(sprintf(
-                'Path to persistables "%s" does not exist',
-                $path
-            ));
-        }
         $collection = new Collection();
-        foreach ($this->loopDirectory($path, true) as $class) {
-            $collection->set($class, $this->factory->get($class));
+        foreach ($this->getNamespaces() as $namespace => $path) {
+            if (Path::isRelative($path)) {
+                $path = Path::join($this->rootPath, $path);
+            }
+            if (!file_exists($path)) {
+                throw new InvalidArgumentException(sprintf(
+                    'Path to persistables "%s" does not exist',
+                    $path
+                ));
+            }
+            foreach ($this->loopDirectory($path, $namespace, true) as $class) {
+                try {
+                    $collection->set($class, $this->factory->get($class));
+                } catch (Throwable $e) {
+                    // record errors
+                    $x = 5;
+                }
+            }
         }
         return $collection;
     }
 
-    private function loopDirectory(string $path, bool $recursive = false): Generator
+    private function loopDirectory(string $path, string $ns, bool $recursive = false): Generator
     {
         if ($recursive) {
             $loop = $this->getRecursiveLoop($path);
@@ -97,22 +109,32 @@ class Reader
     private function getNamespaces(): Namespaces\Collection
     {
         if ($this->namespaces === null) {
-            if (!file_exists($root . '/composer.json')) {
+            $composer = Path::join($this->rootPath, 'composer.json');
+            if (!file_exists($composer) || !is_readable($composer)) {
                 throw new InvalidArgumentException(sprintf(
-                    'Could not find the composer.json file at "%s"',
-                    $root
+                    'Could not find or read the composer.json file at "%s"',
+                    $composer
                 ));
             }
-            $json = json_decode(
-                file_get_contents($root . '/composer.json'),
-                flags: JSON_THROW_ON_ERROR
-            );
-            $this->namespaces = new Namespaces\Collection();
-            $psr4             = $json['autoload']['psr-4'] ?? [];
-            foreach ($psr4 as $namespace => $path) {
-                $this->namespaces->set($namespace, $path);
+            try {
+                $json = json_decode(
+                    file_get_contents($this->rootPath . '/composer.json'),
+                    flags: JSON_THROW_ON_ERROR
+                );
+            } catch(JsonException $e) {
+                throw new InvalidArgumentException(sprintf(
+                    'Could not parse the composer.json at "%s" to JSON notation',
+                    $composer
+                ));
             }
-
+            $psr4 = $json?->autoload?->{'psr-4'};
+            $this->namespaces = new Namespaces\Collection();
+            if (is_object($psr4)) {
+                $psr4 = new ArrayObject($psr4);
+                foreach ($psr4 as $namespace => $path) {
+                    $this->namespaces->set($namespace, $path);
+                }
+            }
         }
         return $this->namespaces;
     }
