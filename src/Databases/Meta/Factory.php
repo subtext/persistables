@@ -287,8 +287,8 @@ class Factory
         ReflectionProperty $property,
         Table $table, Column $instance
     ): Column {
-        $sqlType = null;
-        if (SqlLogicalType::tryFrom($instance->type) === null) {
+        $sqlType = $instance->type;
+        if (!$sqlType instanceof SqlLogicalType) {
             $types = $property->getType();
             if ($types === null) {
                 throw InvalidPropertyTypeException::create($property);
