@@ -3,6 +3,7 @@
 namespace Subtext\Persistables\Console\Schemas\Attributes\Namespaces;
 
 use Subtext\Collections\Text;
+use Symfony\Component\Filesystem\Path;
 
 class Collection extends Text
 {
@@ -12,10 +13,9 @@ class Collection extends Text
         $iterator = $this->getIterator();
         $iterator->rewind();
         while ($iterator->valid()) {
-            $path      = $iterator->current();
-            $namespace = $iterator->key();
-            if (str_contains($filePath, $path)) {
-                $matched = $namespace;
+            if (Path::isBasePath($iterator->current(), $filePath)) {
+                $matched = $iterator->key();
+                break;
             }
             $iterator->next();
         }

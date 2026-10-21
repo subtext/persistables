@@ -13,6 +13,8 @@ use Subtext\Persistables\Databases\Meta\Collection;
 use Subtext\Persistables\Databases\Meta\Factory;
 use Subtext\Persistables\Exceptions\SchemaDefinitionException;
 use Subtext\Persistables\Persistable;
+use Symfony\Component\Filesystem\Path;
+use Throwable;
 
 class Reader
 {
@@ -57,7 +59,9 @@ class Reader
             $fileInfo = $loop->current();
             if ($fileInfo->isFile() && !$this->isDot($fileInfo)) {
                 if ($fileInfo->getExtension() === 'php') {
-                    $fqdn = $this->getFullyQualifiedDomainName($fileInfo);
+                    $rel   = Path::makeRelative($fileInfo->getPathname(), $path);
+                    $class = str_replace('/', '\\', substr($rel, 0, -4));
+                    $fqdn  = $ns . $class;
                     if (is_subclass_of($fqdn, Persistable::class)) {
                         yield $fqdn;
                     }
@@ -87,24 +91,10 @@ class Reader
         );
     }
 
-    private function getFullyQualifiedDomainName(SplFileInfo $fileInfo): string
-    {
-        $fqdn  = null;
-        $ns    = $this->getNamespaces($this->rootPath);
-        $class = $fileInfo->getBasename('.' . $fileInfo->getExtension());
-        if ($namespace = $ns->getNamespace(str_replace($this->rootPath, '', $fileInfo->getPath()))) {
-            $fqdn = $namespace . '\\' . $class;
-        }
-        if ($fqdn === null) {
-            throw new InvalidArgumentException(sprintf(
-                'Could not find the fqdn at "%s"',
-                $fileInfo->getFilename()
-            ));
-        }
-        return $fqdn;
-    }
-
-    private function getNamespaces(string $root): Namespaces\Collection
+    /**
+     * @throws InvalidArgumentException
+     */
+    private function getNamespaces(): Namespaces\Collection
     {
         if ($this->namespaces === null) {
             if (!file_exists($root . '/composer.json')) {
