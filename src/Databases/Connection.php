@@ -5,6 +5,7 @@ namespace Subtext\Persistables\Databases;
 use Closure;
 use PDO;
 use Subtext\Persistables\Databases\SqlGenerators\MySqlGenerator;
+use Throwable;
 
 class Connection
 {
@@ -30,6 +31,23 @@ class Connection
         private readonly string $charset,
         private readonly Closure $fn
     ) {
+    }
+
+    public static function getPdoResolver(): Closure
+    {
+        return function ($name, $host, $user, $pass, $driver, $charset): ?PDO {
+            try {
+                $pdo = new PDO(
+                    sprintf('%s:host=%s;port=3306;dbname=%s;charset=%s', $driver, $host, $name, $charset),
+                    $user,
+                    $pass,
+                );
+            } catch (Throwable $e) {
+                $pdo = null;
+            } finally {
+                return $pdo;
+            }
+        };
     }
 
     public function getPdo(): ?PDO

@@ -97,20 +97,7 @@ class Validate extends Command
             $input->getOption('dbpass'),
             $input->getOption('dbdriver'),
             'utf8mb4',
-            function ($name, $host, $user, $pass, $driver, $charset): ?PDO {
-                try {
-                    $pdo = new PDO(
-                        sprintf('mysql:host=%s;port=3306;dbname=%s', $host, $name),
-                        $user,
-                        $pass,
-                        $charset
-                    );
-                } catch (PDOException $e) {
-                    $pdo = null;
-                } finally {
-                    return $pdo;
-                }
-            }
+            Connection::getPdoResolver()
         );
         $database = Sql::getInstance($connection);
         return $result;
