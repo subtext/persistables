@@ -2,7 +2,6 @@
 
 namespace Subtext\Persistables\Console\Schemas\Databases\Introspectors;
 
-use Subtext\Persistables\Console\Schemas\Databases\Introspector;
 use Subtext\Persistables\Databases\Attributes\Column;
 use Subtext\Persistables\Databases\Attributes\Columns;
 use Subtext\Persistables\Databases\Attributes\Table;
