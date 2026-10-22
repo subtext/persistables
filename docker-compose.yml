@@ -12,6 +12,7 @@ services:
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_NAME}
       XDEBUG_MODE: ${XDEBUG_MODE}
+      PHP_IDE_CONFIG: ${PHP_IDE_CONFIG}
     volumes:
       - ./:/app
     working_dir: /app
@@ -27,8 +28,6 @@ services:
       MYSQL_USER: ${DB_USER}
     volumes:
       - "mysql8_data:/var/lib/mysql"
-    ports:
-      - "3306:3306"
 
 volumes:
   mysql8_data:
