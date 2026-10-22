@@ -13,6 +13,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 class Validate extends Command
 {
@@ -68,12 +69,13 @@ class Validate extends Command
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Database password',
-                getenv('DB_PASSWORD') ?? 'password'
+                getenv('DB_PASS') ?? 'password'
             );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $io = new SymfonyStyle($input, $output);
         $result = Command::FAILURE;
         if (!file_exists($this->rootPath)) {
             throw new InvalidArgumentException(sprintf(
@@ -88,8 +90,12 @@ class Validate extends Command
         if ($input->hasOption('namespace')) {
 
         }
-        $attributes = new Attributes\Reader($this->rootPath);
-        $meta       = $attributes->getMetaCollection($this->rootPath . $path);
+        $reader     = new Attributes\Reader($this->rootPath);
+        $meta       = $reader->getMetaCollection();
+        $errors     = $reader->getMetaErrors();
+        foreach ($errors as $error) {
+            $io->error($error->getMessage());
+        }
         $connection = new Connection(
             $input->getOption('dbname'),
             $input->getOption('dbhost'),

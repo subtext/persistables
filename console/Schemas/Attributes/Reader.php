@@ -23,6 +23,7 @@ class Reader
     protected string $rootPath;
     protected Factory $factory;
     protected ?Namespaces\Collection $namespaces = null;
+    protected ?Errors\Collection $errors = null;
 
     public function __construct(string $root)
     {
@@ -32,8 +33,6 @@ class Reader
 
     /**
      * @throws InvalidArgumentException
-     * @throws ReflectionException
-     * @throws SchemaDefinitionException
      */
     public function getMetaCollection(): Collection
     {
@@ -52,12 +51,24 @@ class Reader
                 try {
                     $collection->set($class, $this->factory->get($class));
                 } catch (Throwable $e) {
-                    // record errors
-                    $x = 5;
+                    $this->getMetaErrors()->append($e);
                 }
             }
         }
         return $collection;
+    }
+
+    public function getMetaErrors(): Errors\Collection
+    {
+        if ($this->errors === null) {
+            $this->errors = new Errors\Collection();
+        }
+        return $this->errors;
+    }
+
+    public function resetMetaErrors(): void
+    {
+        $this->errors = null;
     }
 
     private function loopDirectory(string $path, string $ns, bool $recursive = false): Generator
