@@ -10,7 +10,7 @@ use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Throwable;
 
-require_once dirname(__DIR__) . '/vendor/autoload.php';
+require_once $_composer_autoload_path ?? dirname(__DIR__) . '/vendor/autoload.php';
 
 try {
     $root = dirname(__DIR__);
