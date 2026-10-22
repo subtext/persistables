@@ -5,12 +5,12 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Subtext\\Persistables\\": "src/"
+            "Subtext\\Persistables\\": "src/",
+            "Subtext\\Persistables\\Console\\": "console/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Subtext\\Persistables\\Console\\": "console/",
             "Subtext\\Persistables\\Tests\\Unit\\": "tests/unit/"
         }
     },
