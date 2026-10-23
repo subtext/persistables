@@ -3,6 +3,7 @@
 
 namespace Subtext\Persistables;
 
+use Composer\InstalledVersions;
 use Subtext\Persistables\Console\Commands;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArgvInput;
@@ -13,11 +14,8 @@ use Throwable;
 require_once $_composer_autoload_path ?? dirname(__DIR__) . '/vendor/autoload.php';
 
 try {
-    $root = dirname(__DIR__);
-    if (str_ends_with($root, '/vendor')) {
-        $root = dirname(__DIR__, 2);
-    }
-    $app = new Application('Subtext Persistables', '1.0.2');
+    $root = InstalledVersions::getRootPackage()['install_path'];
+    $app  = new Application('Subtext Persistables', '1.0.2');
     $app->addCommands([
             new Commands\Schemas\Validate($root)
     ]);
