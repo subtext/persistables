@@ -141,8 +141,7 @@ class Reader
             $psr4 = $json?->autoload?->{'psr-4'};
             $this->namespaces = new Namespaces\Collection();
             if (is_object($psr4)) {
-                $psr4 = new ArrayObject($psr4);
-                foreach ($psr4 as $namespace => $path) {
+                foreach (get_object_vars($psr4) as $namespace => $path) {
                     $this->namespaces->set($namespace, $path);
                 }
             }
