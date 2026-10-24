@@ -144,6 +144,10 @@ class Reader
                 foreach (get_object_vars($psr4) as $namespace => $path) {
                     $this->namespaces->set($namespace, $path);
                 }
+            } else {
+                throw new InvalidArgumentException(
+                    'PSR-4 autoload sources could not be determined'
+                );
             }
         }
         return $this->namespaces;
