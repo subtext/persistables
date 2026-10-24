@@ -3,7 +3,6 @@
 namespace Subtext\Persistables\Console\Schemas\Databases\Introspectors;
 
 use InvalidArgumentException;
-use Subtext\Persistables\Console\Schemas\Databases\Introspector;
 use Subtext\Persistables\Databases\Sql;
 
 class Factory
