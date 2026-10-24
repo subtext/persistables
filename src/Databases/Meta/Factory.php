@@ -334,7 +334,9 @@ class Factory
             $instance->primary,
             $instance->readonly,
             $instance->getter ?? $this->inferAccessorName($name, $class),
-            $instance->setter ?? $this->inferAccessorName($name, $class, 'set'),
+            $instance->setter ?? (!$instance->readonly
+                ? $this->inferAccessorName($name, $class, 'set')
+                : null),
             $instance->type ?? $sqlType,
             $instance->limit ?? $length,
             $instance->nullable ?? $property->getType()->allowsNull(),
