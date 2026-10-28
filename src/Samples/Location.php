@@ -17,7 +17,7 @@ class Location extends Persistable
     #[Column(limit: 128, nullable: false, unique: true, uqGroup: 'streetAddress')]
     protected ?string $street = null;
 
-    #[Column(limit: 128, nullable: false, unique: true, uqGroup: 'streetAddress')]
+    #[Column(limit: 128, nullable: true, unique: true, uqGroup: 'streetAddress')]
     protected ?string $unit = null;
 
     #[Column(nullable: false, unique: true, uqGroup: 'streetAddress')]

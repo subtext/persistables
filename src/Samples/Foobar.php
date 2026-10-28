@@ -18,11 +18,41 @@ class Foobar extends Persistable
     protected string $beta;
 
     #[Column('gamma')]
-    protected string $gamma;
+    protected string $gamma = '';
     protected string $delta;
 
     #[Column('epsilon')]
-    protected string $epsilon;
+    protected string $epsilon = '';
+
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function setId(?int $id): void
+    {
+        $this->modify('id', $id);
+    }
+
+    public function getGamma(): string
+    {
+        return $this->gamma;
+    }
+
+    public function setGamma(string $gamma): void
+    {
+        $this->modify('gamma', $gamma);
+    }
+
+    public function getEpsilon(): string
+    {
+        return $this->epsilon;
+    }
+
+    public function setEpsilon(string $epsilon): void
+    {
+        $this->modify('epsilon', $epsilon);
+    }
 
     /**
      * @inheritDoc

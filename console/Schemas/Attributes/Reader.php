@@ -32,7 +32,11 @@ class Reader
     }
 
     /**
-     * @throws InvalidArgumentException
+     * Collects metadata for discovered Persistable classes, recording per-class
+     * failures in getMetaErrors() while continuing with the remaining classes.
+     *
+     * @throws InvalidArgumentException If composer.json cannot be read or parsed,
+     *     or a configured autoload path does not exist.
      */
     public function getMetaCollection(): Collection
     {

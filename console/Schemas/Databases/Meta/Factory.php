@@ -2,28 +2,22 @@
 
 namespace Subtext\Persistables\Console\Schemas\Databases\Meta;
 
-use Subtext\Persistables\Databases\Attributes\Column;
-use Subtext\Persistables\Databases\Attributes\Columns;
-use Subtext\Persistables\Databases\Attributes\Joins;
-use Subtext\Persistables\Databases\Attributes\Entities;
-use Subtext\Persistables\Databases\Attributes\Table;
-use Subtext\Persistables\Databases\Meta;
+use Subtext\Persistables\Console\Schemas\Databases\Introspectors\Introspector;
 use Subtext\Persistables\Databases\Meta\Collection;
-use Subtext\Persistables\Databases\Sql;
 
 class Factory
 {
     private static ?self $instance = null;
     private Collection $meta;
-    private Sql $db;
+    private Introspector $introspector;
 
-    private function __construct(Sql $db)
+    private function __construct(Introspector $introspector)
     {
         $this->meta = new Collection();
-        $this->db   = $db;
+        $this->introspector = $introspector;
     }
 
-    public static function getInstance(Sql $db, bool $new = false): self
+    public static function getInstance(Introspector $db, bool $new = false): self
     {
         if (self::$instance === null || $new) {
             self::$instance = new self($db);
@@ -31,49 +25,42 @@ class Factory
         return self::$instance;
     }
 
-    public function get(string $tableName): ?Meta
+    public function get(Collection $schema): Collection
     {
-        if (!$this->meta->has($tableName)) {
-            $table = new Table(
-                $tableName,
-                $this->getPrimaryKey($tableName)
-            );
-            $columns = new Columns\Collection();
-            foreach ($this->getColumns($tableName) as $column) {
-                $columns->set($column->name, new Column(
-                    $column->name,
-                    $table->name,
-                    false,
-                    false,
-                    null,
-                    null,
-                    $column->type,
-                    $column->length,
-                    $column->nullable,
-                    $column->increment,
-                    $column->precision,
-                    $column->scale,
-                    $column->unique === 1 ? true : null,
-                    $column->uqGroup,
-                    $column->index === 1 ? true : null,
-                    $column->idxGroup,
-                    $column->unsigned,
-                    $column->nullDefault,
-                    $column->default
-                ));
+        foreach ($schema as $ns => $runtime) {
+            if(!$this->meta->has($ns)) {
+                $this->meta->set($ns, $this->introspector->getMeta($runtime));
             }
-            $this->meta->set($tableName, new Meta(
-                $table,
-                $columns,
-                null,
-                null
-            ));
         }
-        return $this->meta->get($tableName);
+        return new Collection($this->meta->getArrayCopy());
     }
 
-    public function getMeta(): Collection
-    {
-        return $this->meta;
-    }
+//    private function getColumns(Meta $meta): Columns\Collection
+//    {
+//        $columns = new Columns\Collection();
+//        foreach ([] as $column) {
+//            $columns->set($column->name, new Column(
+//                $column->name,
+//                $meta->getTable()->name,
+//                false,
+//                false,
+//                null,
+//                null,
+//                $column->type,
+//                $column->length,
+//                $column->nullable,
+//                $column->increment,
+//                $column->precision,
+//                $column->scale,
+//                $column->unique === 1 ? true : null,
+//                $column->uqGroup,
+//                $column->index === 1 ? true : null,
+//                $column->idxGroup,
+//                $column->unsigned,
+//                $column->nullDefault,
+//                $column->default
+//            ));
+//        }
+//        return $columns;
+//    }
 }

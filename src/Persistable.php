@@ -61,6 +61,7 @@ abstract class Persistable implements JsonSerializable
      * @param mixed $new
      *
      * @return void
+     * @throws InvalidArgumentException If the named property does not exist.
      */
     protected function modify(string $name, mixed $new): void
     {

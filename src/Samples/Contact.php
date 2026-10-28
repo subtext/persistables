@@ -163,4 +163,24 @@ class Contact extends Persistable
         }
         $this->location = $location;
     }
+
+    public function getCreated(): ?DateTimeInterface
+    {
+        return $this->getDateValue($this->created);
+    }
+
+    public function setCreated(?DateTimeInterface $created): void
+    {
+        $this->modify('created', $created);
+    }
+
+    public function getUpdated(): ?DateTimeInterface
+    {
+        return $this->getDateValue($this->updated);
+    }
+
+    public function setUpdated(?DateTimeInterface $updated): void
+    {
+        $this->modify('updated', $updated);
+    }
 }

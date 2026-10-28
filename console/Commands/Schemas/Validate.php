@@ -3,17 +3,15 @@
 namespace Subtext\Persistables\Console\Commands\Schemas;
 
 use InvalidArgumentException;
-use PDO;
-use PDOException;
 use Subtext\Persistables\Console\Schemas\Attributes;
-use Subtext\Persistables\Console\Schemas\Databases;
-use Subtext\Persistables\Databases\Connection;
-use Subtext\Persistables\Databases\Sql;
+use Subtext\Persistables\Databases\Attributes\Column;
+use Subtext\Persistables\Databases\Attributes\Columns\Type;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Throwable;
 
 class Validate extends Command
 {
@@ -83,29 +81,76 @@ class Validate extends Command
                 $this->rootPath
             ));
         }
-        $path = '/src';
-        if ($input->hasOption('path')) {
-            $path = '/' . $input->getOption('path');
-        }
-        if ($input->hasOption('namespace')) {
-
-        }
+//        $path = '/src';
+//        if ($input->hasOption('path')) {
+//            $path = '/' . $input->getOption('path');
+//        }
+//        if ($input->hasOption('namespace')) {
+//
+//        }
         $reader     = new Attributes\Reader($this->rootPath);
         $meta       = $reader->getMetaCollection();
         $errors     = $reader->getMetaErrors();
-        foreach ($errors as $error) {
-            $io->error($error->getMessage());
+        if ($errors->count() > 0) {
+            $io->error('There are schema errors for Persistables classes');
+            $io->table(
+                ['Exception', 'Message'],
+                array_map(
+                    fn (Throwable $th): array => [get_class($th), $th->getMessage()],
+                    $errors->getArrayCopy()
+                )
+            );
+        } else {
+            $result = Command::SUCCESS;
+            $io->success('The current persistables classes have been validated');
+            foreach ($meta as $namespace => $entity) {
+                $pk = $entity->getTable()->primaryKey;
+                $io->newLine();
+                $io->writeLn(sprintf('%s (%s)', $namespace, $entity->getTable()->name));
+                $io->table(
+                    ['Field', 'Type', 'Null', 'Key', 'Default', 'Extra'],
+                    array_map(
+                        fn(Column $column): array => [
+                            $column->name,
+                            $this->getDisplayType($column),
+                            $column->nullable && $column->name != $pk ? 'YES' : 'NO',
+                            $this->getDisplayKey($column, $entity->getTable()->primaryKey),
+                            $column->default !== null ? $column->default : 'NULL',
+                            $column->increment || $column->name === $pk ? 'auto_increment' : '',
+                        ],
+                        $entity->getColumns()->getArrayCopy()
+                    )
+                );
+            }
         }
-        $connection = new Connection(
-            $input->getOption('dbname'),
-            $input->getOption('dbhost'),
-            $input->getOption('dbuser'),
-            $input->getOption('dbpass'),
-            $input->getOption('dbdriver'),
-            'utf8mb4',
-            Connection::getPdoResolver()
-        );
-        $database = Sql::getInstance($connection);
         return $result;
+    }
+
+    private function getDisplayType(Column $column): string
+    {
+        switch ($column->type) {
+            case Type::CHARACTER:
+            case TYPE::STRING:
+                $string = sprintf('%s(%d)', $column->type->value, $column->limit);
+                break;
+            case TYPE::DECIMAL:
+                $string = sprintf('%s(%d,%d)', $column->type->value, $column->precision, $column->scale);
+                break;
+            default:
+                $string = $column->type->value;
+        }
+        return $string;
+    }
+
+    private function getDisplayKey(Column $column, string $pk): string
+    {
+        if ($column->name === $pk) {
+            $key = 'PRI';
+        } elseif (($column->index || $column->unique) && !$column->nullable) {
+            $key = 'MUL';
+        } else {
+            $key = '';
+        }
+        return $key;
     }
 }

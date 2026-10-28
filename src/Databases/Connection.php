@@ -19,8 +19,9 @@ class Connection
      * @param string $password The database password.
      * @param string $driver   A compatible PDO driver string name.
      * @param string $charset  The character set to pass to the PDO object.
-     * @param Closure $fn      A function which accepts each of the previous
-     *                         arguments and returns a PDO object.
+     * @param Closure(string, string, string, string, string, string): ?PDO $fn
+     *     Receives database, hostname, username, password, driver, and charset;
+     *     returns a PDO connection or null when the connection fails.
      */
     public function __construct(
         private readonly string $database,
@@ -33,6 +34,11 @@ class Connection
     ) {
     }
 
+    /**
+     * Returns a resolver that creates a PDO connection or returns null on failure.
+     *
+     * @return Closure(string, string, string, string, string, string): ?PDO
+     */
     public static function getPdoResolver(): Closure
     {
         return function ($name, $host, $user, $pass, $driver, $charset): ?PDO {

@@ -54,7 +54,7 @@ class Column
      * @param string|null $getter     The method name of the getter. If null, the
      *                                method name is inferred from the property.
      * @param string|null $setter     The method name of the setter. If null, the
-     *                                method name is inferred from the property.
+     *                                method name is inferred unless the column is readonly.
      * @param Columns\Type|null $type The SQL column type, inferred from the property
      *                                type if this property is null.
      * @param int $limit              The character limit for string types. Defaults
@@ -62,8 +62,7 @@ class Column
      * @param bool|null $nullable     Whether this column may be null. If null, the
      *                                value is inferred from the property type.
      * @param bool|null $increment    Whether the column value should auto-increment.
-     *                                If null, numeric primary key fields are assumed
-     *                                to auto-increment by default.
+     *                                If null, metadata inference resolves this to false.
      * @param int|null $precision     The total number of digits for numeric types.
      *                                Commonly used with DECIMAL and NUMERIC columns.
      * @param int|null $scale         The number of digits after the decimal point for
@@ -80,9 +79,9 @@ class Column
      *                                named group.
      * @param bool|null $unsigned     Whether the column should be unsigned.
      *                                Applies to numeric column types.
-     * @param bool $nullDefault       Whether the column has a default value.
-     * @param mixed $default          The default value for this column. If null,
-     *                                the database default is used.
+     * @param bool $nullDefault       Whether the column explicitly defaults to SQL NULL.
+     * @param mixed $default          The default value for this column. Use $nullDefault
+     *                                to represent an explicit SQL NULL default.
      */
     public function __construct(
         public ?string $name = null,

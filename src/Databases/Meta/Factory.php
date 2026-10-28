@@ -50,6 +50,7 @@ class Factory
      *
      * @param string $class
      * @return Meta
+     * @throws InvalidArgumentException If the class is missing or is not a Persistable or PersistableCollection subclass.
      * @throws ReflectionException
      * @throws SchemaDefinitionException
      */
@@ -111,6 +112,7 @@ class Factory
      * @param Meta $meta The metadata object where processed attributes will be stored.
      * @param ReflectionProperty $property The reflected property whose attributes are to be processed.
      * @return void
+     * @throws InvalidArgumentException If a nested entity class is invalid.
      * @throws SchemaDefinitionException
      */
     private function getAttributesForProperties(Meta $meta, ReflectionProperty $property): void
@@ -118,13 +120,15 @@ class Factory
         $name    = $property->getName();
         $class   = $property->getDeclaringClass()->getName();
         $columns = $property->getAttributes(Column::class);
+        /** @var Column $first */
+        $first   = $columns[0]->newInstance();
         if (!empty($columns)) {
             $meta->getColumns()->set(
                 $property->getName(),
                 $this->getColumnWithInferredValues(
                     $property,
                     $meta->getTable(),
-                    $columns[0]->newInstance()
+                    $first
                 )
             );
         }
@@ -207,8 +211,7 @@ class Factory
      * @param string $type     The accessor prefix type (e.g., 'get', 'set').
      *                         Defaults to 'get'.
      *
-     * @return string|null The inferred accessor method name, or null if the
-     *                     method is invalid.
+     * @return string The inferred and validated accessor method name.
      *
      * @throws InvalidAccessorException If the constructed method name is
      *                                  invalid or missing in the class.
@@ -244,14 +247,14 @@ class Factory
 
     /**
      * Validates if the provided class name exists and implements the required
-     * Persistable or PersistableCollection interface.
+     * Persistable or PersistableCollection base class.
      *
      * @param string $class The fully qualified class name to validate.
      *
      * @return void
      *
      * @throws InvalidArgumentException If the class does not exist or does not
-     *                                  implement the required interface.
+     *                                  extend either required base class.
      */
     private function validateClass(string $class): void
     {
