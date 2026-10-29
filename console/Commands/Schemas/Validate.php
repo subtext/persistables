@@ -36,7 +36,7 @@ class Validate extends Command
             )->addOption(
                 'namespace',
                 'ns',
-                INPUTOption::VALUE_REQUIRED,
+                InputOption::VALUE_REQUIRED,
                 'Namespace of the persistables classes'
             )->addOption(
                 'dbdriver',
@@ -73,7 +73,7 @@ class Validate extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
+        $io     = new SymfonyStyle($input, $output);
         $result = Command::FAILURE;
         if (!file_exists($this->rootPath)) {
             throw new InvalidArgumentException(sprintf(
@@ -81,16 +81,16 @@ class Validate extends Command
                 $this->rootPath
             ));
         }
-//        $path = '/src';
-//        if ($input->hasOption('path')) {
-//            $path = '/' . $input->getOption('path');
-//        }
-//        if ($input->hasOption('namespace')) {
-//
-//        }
-        $reader     = new Attributes\Reader($this->rootPath);
-        $meta       = $reader->getMetaCollection();
-        $errors     = $reader->getMetaErrors();
+        //        $path = '/src';
+        //        if ($input->hasOption('path')) {
+        //            $path = '/' . $input->getOption('path');
+        //        }
+        //        if ($input->hasOption('namespace')) {
+        //
+        //        }
+        $reader = new Attributes\Reader($this->rootPath);
+        $meta   = $reader->getMetaCollection();
+        $errors = $reader->getMetaErrors();
         if ($errors->count() > 0) {
             $io->error('There are schema errors for Persistables classes');
             $io->table(
@@ -110,7 +110,7 @@ class Validate extends Command
                 $io->table(
                     ['Field', 'Type', 'Null', 'Key', 'Default', 'Extra'],
                     array_map(
-                        fn(Column $column): array => [
+                        fn (Column $column): array => [
                             $column->name,
                             $this->getDisplayType($column),
                             $column->nullable && $column->name != $pk ? 'YES' : 'NO',
@@ -130,10 +130,10 @@ class Validate extends Command
     {
         switch ($column->type) {
             case Type::CHARACTER:
-            case TYPE::STRING:
+            case Type::STRING:
                 $string = sprintf('%s(%d)', $column->type->value, $column->limit);
                 break;
-            case TYPE::DECIMAL:
+            case Type::DECIMAL:
                 $string = sprintf('%s(%d,%d)', $column->type->value, $column->precision, $column->scale);
                 break;
             default:

@@ -23,7 +23,7 @@ class Reader
     protected string $rootPath;
     protected Factory $factory;
     protected ?Namespaces\Collection $namespaces = null;
-    protected ?Errors\Collection $errors = null;
+    protected ?Errors\Collection $errors         = null;
 
     public function __construct(string $root)
     {
@@ -84,15 +84,9 @@ class Reader
         }
         while ($loop->valid()) {
             $fileInfo = $loop->current();
-            if ($fileInfo->isFile() && !$this->isDot($fileInfo)) {
-                if ($fileInfo->getExtension() === 'php') {
-                    $rel   = Path::makeRelative($fileInfo->getPathname(), $path);
-                    $class = str_replace('/', '\\', substr($rel, 0, -4));
-                    $fqdn  = $ns . $class;
-                    if (is_subclass_of($fqdn, Persistable::class)) {
-                        yield $fqdn;
-                    }
-                }
+            $fqdn = $this->getFullyQualifiedDomainNameOfPersistableOrNull($fileInfo, $path, $ns);
+            if ($fqdn !== null) {
+                yield $fqdn;
             }
             $loop->next();
         }
@@ -118,6 +112,24 @@ class Reader
         );
     }
 
+    private function getFullyQualifiedDomainNameOfPersistableOrNull(
+        SplFileInfo $fileInfo,
+        string $path,
+        string $ns
+    ): ?string {
+        $rel            = Path::makeRelative($fileInfo->getPathname(), $path);
+        $class          = str_replace('/', '\\', substr($rel, 0, -4));
+        $fqdn           = $ns . $class;
+        $isFile         = $fileInfo->isFile();
+        $isNotDotFile   = !$this->isDot($fileInfo);
+        $isChild        = is_subclass_of($fqdn, Persistable::class);
+        $isNotRootClass = ($fqdn !== Persistable::class);
+        if (!($isFile && $isNotDotFile && $isChild && $isNotRootClass)) {
+            $fqdn = null;
+        }
+        return $fqdn;
+    }
+
     /**
      * @throws InvalidArgumentException
      */
@@ -136,13 +148,13 @@ class Reader
                     file_get_contents($this->rootPath . '/composer.json'),
                     flags: JSON_THROW_ON_ERROR
                 );
-            } catch(JsonException $e) {
+            } catch (JsonException $e) {
                 throw new InvalidArgumentException(sprintf(
                     'Could not parse the composer.json at "%s" to JSON notation',
                     $composer
                 ));
             }
-            $psr4 = $json?->autoload?->{'psr-4'};
+            $psr4             = $json?->autoload?->{'psr-4'};
             $this->namespaces = new Namespaces\Collection();
             if (is_object($psr4)) {
                 foreach (get_object_vars($psr4) as $namespace => $path) {

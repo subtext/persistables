@@ -25,6 +25,7 @@ use Subtext\Persistables\Exceptions\InvalidPropertyTypeException;
 use Subtext\Persistables\Exceptions\MissingAttributeException;
 use Subtext\Persistables\Exceptions\SchemaDefinitionException;
 use Subtext\Persistables\Persistable;
+use Subtext\Persistables\Samples\Contact;
 
 class Factory
 {
@@ -120,9 +121,9 @@ class Factory
         $name    = $property->getName();
         $class   = $property->getDeclaringClass()->getName();
         $columns = $property->getAttributes(Column::class);
-        /** @var Column $first */
-        $first   = $columns[0]->newInstance();
         if (!empty($columns)) {
+            /** @var Column $first */
+            $first = $columns[0]->newInstance();
             $meta->getColumns()->set(
                 $property->getName(),
                 $this->getColumnWithInferredValues(
@@ -226,7 +227,6 @@ class Factory
         return $method;
     }
 
-
     /**
      * Validates the existence of a method within a given class.
      *
@@ -288,7 +288,8 @@ class Factory
      */
     private function getColumnWithInferredValues(
         ReflectionProperty $property,
-        Table $table, Column $instance
+        Table $table,
+        Column $instance
     ): Column {
         $sqlType = $instance->type;
         if (!$sqlType instanceof SqlLogicalType) {
@@ -297,7 +298,7 @@ class Factory
                 throw InvalidPropertyTypeException::create($property);
             }
             if ($types instanceof ReflectionNamedType) {
-                $type = $types->getName();
+                $type    = $types->getName();
                 $sqlType = $this->phpToSqlType($type, $instance);
             } elseif ($types instanceof ReflectionUnionType) {
                 foreach ($types->getTypes() as $namedType) {
@@ -322,7 +323,7 @@ class Factory
                 $length = ($instance->limit ?? 255);
                 break;
             case SqlLogicalType::DECIMAL:
-                $scale = $instance->scale ?? 9;
+                $scale     = $instance->scale     ?? 9;
                 $precision = $instance->precision ?? 2;
                 break;
             default:
@@ -332,21 +333,21 @@ class Factory
         $name  = $property->getName();
         $class = $property->getDeclaringClass()->getName();
         return new Column(
-            $instance->name ?? $name,
+            $instance->name  ?? $name,
             $instance->table ?? $table->name,
             $instance->primary,
             $instance->readonly,
             $instance->getter ?? $this->inferAccessorName($name, $class),
             $instance->setter ?? ($instance->readonly
                 ? null
-                : $this->inferAccessorName($name, $class, 'set')),
-            $instance->type ?? $sqlType,
-            $instance->limit ?? $length,
-            $instance->nullable ?? $property->getType()->allowsNull(),
+                : $this->inferAccessorName($name, $class, 'set', true)),
+            $instance->type      ?? $sqlType,
+            $instance->limit     ?? $length,
+            $instance->nullable  ?? $property->getType()->allowsNull(),
             $instance->increment ?? false,
             $instance->precision ?? $precision,
-            $instance->scale ?? $scale,
-            $instance->unique ?? false,
+            $instance->scale     ?? $scale,
+            $instance->unique    ?? false,
             $instance->uqGroup,
             $instance->index ?? false,
             $instance->idxGroup,
@@ -365,7 +366,7 @@ class Factory
      *
      * @return SqlLogicalType|null The inferred SQL logical type, or null if it cannot be determined.
      */
-    private function phpToSqlType(String $php, Column $column): ?SqlLogicalType
+    private function phpToSqlType(string $php, Column $column): ?SqlLogicalType
     {
         switch ($php) {
             case 'int':
@@ -395,4 +396,5 @@ class Factory
         }
 
         return $sql;
-    }}
+    }
+}

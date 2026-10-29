@@ -11,8 +11,8 @@ class InvalidPropertyTypeException extends SchemaDefinitionException
     public static function create(ReflectionProperty $property): self
     {
         $propertyClass = $property->getDeclaringClass()->getName();
-        $propertyName = $property->getName();
-        $type = $property->getType();
+        $propertyName  = $property->getName();
+        $type          = $property->getType();
         if ($type === null) {
             $message = sprintf(
                 "The property: %s of class %s has no defined type.",

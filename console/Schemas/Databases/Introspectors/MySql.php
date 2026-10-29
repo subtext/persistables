@@ -9,6 +9,8 @@ use Subtext\Persistables\Databases\Attributes\Table;
 use Subtext\Persistables\Databases\Meta;
 use Subtext\Persistables\Databases\Sql;
 use Throwable;
+use PDOException;
+use UnexpectedValueException;
 
 class MySql implements Introspector
 {
@@ -60,9 +62,9 @@ class MySql implements Introspector
      * default are marked with nullDefault because MySQL does not distinguish
      * an omitted default from an explicit DEFAULT NULL here.
      *
-     * @throws \UnexpectedValueException If a column type is unsupported or a
+     * @throws UnexpectedValueException If a column type is unsupported or a
      *     column belongs to multiple unique indexes or multiple non-unique indexes.
-     * @throws \PDOException If the schema query fails.
+     * @throws PDOException If the schema query fails.
      */
     protected function getColumns(Meta $runtime): Columns\Collection
     {
@@ -116,17 +118,17 @@ class MySql implements Introspector
                 $type = match ($column->data_type) {
                     'tinyint' => preg_match('/^tinyint\\(1\\)/i', $column->column_type)
                         ? Columns\Type::BOOL : Columns\Type::INTEGER,
-                    'smallint', 'mediumint', 'int', 'integer' => Columns\Type::INTEGER,
-                    'bigint' => Columns\Type::LONG,
-                    'decimal', 'numeric' => Columns\Type::DECIMAL,
-                    'float', 'double', 'real' => Columns\Type::FLOAT,
-                    'char' => Columns\Type::CHARACTER,
-                    'varchar' => Columns\Type::STRING,
+                    'smallint', 'mediumint', 'int', 'integer'    => Columns\Type::INTEGER,
+                    'bigint'                                     => Columns\Type::LONG,
+                    'decimal', 'numeric'                         => Columns\Type::DECIMAL,
+                    'float', 'double', 'real'                    => Columns\Type::FLOAT,
+                    'char'                                       => Columns\Type::CHARACTER,
+                    'varchar'                                    => Columns\Type::STRING,
                     'tinytext', 'text', 'mediumtext', 'longtext' => Columns\Type::TEXT,
-                    'date' => Columns\Type::DATE,
-                    'datetime', 'timestamp' => Columns\Type::DATETIME,
-                    'json' => Columns\Type::JSON,
-                    default => throw new \UnexpectedValueException(sprintf(
+                    'date'                                       => Columns\Type::DATE,
+                    'datetime', 'timestamp'                      => Columns\Type::DATETIME,
+                    'json'                                       => Columns\Type::JSON,
+                    default                                      => throw new UnexpectedValueException(sprintf(
                         'Unsupported MySQL type %s for column %s.',
                         $column->column_type,
                         $column->name,
@@ -144,7 +146,7 @@ class MySql implements Introspector
                     nullable: (bool) $column->nullable,
                     increment: (bool) $column->increment,
                     precision: $column->precision === null ? null : (int) $column->precision,
-                    scale: $column->scale === null ? null : (int) $column->scale,
+                    scale: $column->scale         === null ? null : (int) $column->scale,
                     unique: false,
                     index: false,
                     unsigned: (bool) $column->unsigned,
@@ -156,17 +158,17 @@ class MySql implements Introspector
                 continue;
             }
             $definition = $definitions[$column->name];
-            $unique = !(bool) $column->non_unique;
-            $flag = $unique ? 'unique' : 'index';
-            $group = $unique ? 'uqGroup' : 'idxGroup';
+            $unique     = !(bool) $column->non_unique;
+            $flag       = $unique ? 'unique' : 'index';
+            $group      = $unique ? 'uqGroup' : 'idxGroup';
             if ($definition->$flag) {
-                throw new \UnexpectedValueException(sprintf(
+                throw new UnexpectedValueException(sprintf(
                     'Column %s belongs to multiple %s indexes; Column cannot represent them.',
                     $column->name,
                     $flag,
                 ));
             }
-            $definition->$flag = true;
+            $definition->$flag  = true;
             $definition->$group = (int) $column->index_column_count > 1
                 ? $column->index_name : null;
         }

@@ -11,7 +11,8 @@ readonly class Type
         private ?int $length,
         private ?int $precision,
         private ?int $scale,
-    ) {}
+    ) {
+    }
 
     public function getType(): SqlLogicalType
     {

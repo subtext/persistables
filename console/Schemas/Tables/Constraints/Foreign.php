@@ -9,7 +9,8 @@ readonly class Foreign
         private string $column,
         private string $table,
         private string $reference,
-    ) {}
+    ) {
+    }
 
     public function getName(): string
     {

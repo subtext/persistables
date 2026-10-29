@@ -2,6 +2,8 @@
 
 namespace Subtext\Persistables\Console\Schemas\Tables\Constraints;
 
+use InvalidArgumentException;
+
 class Collection extends \Subtext\Collections\Collection
 {
     /**
@@ -10,7 +12,7 @@ class Collection extends \Subtext\Collections\Collection
     protected function validate(mixed $value): void
     {
         if (!($value instanceof Foreign || $value instanceof Unique)) {
-            throw new \InvalidArgumentException(sprintf(
+            throw new InvalidArgumentException(sprintf(
                 'The value must be an instance of "%s" or "%s, "%s" given',
                 Foreign::class,
                 Unique::class,

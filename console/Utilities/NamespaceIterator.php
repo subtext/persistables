@@ -96,12 +96,11 @@ class NamespaceIterator
             if (str_starts_with($namespace, $prefix) || str_starts_with($prefix, $namespace)) {
                 return [
                     'prefix' => $prefix,
-                    'paths' => $paths,
+                    'paths'  => $paths,
                 ];
             }
         }
 
         return null;
     }
-
 }

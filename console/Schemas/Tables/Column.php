@@ -5,13 +5,14 @@ namespace Subtext\Persistables\Console\Schemas\Tables;
 readonly class Column
 {
     public function __construct(
-        protected string       $name,
+        protected string $name,
         protected Columns\Type $type,
-        protected bool         $primary,
-        protected bool         $autoIncrement,
-        protected bool         $nullable,
-        protected mixed        $default,
-    ) {}
+        protected bool $primary,
+        protected bool $autoIncrement,
+        protected bool $nullable,
+        protected mixed $default,
+    ) {
+    }
 
     public function getName(): string
     {

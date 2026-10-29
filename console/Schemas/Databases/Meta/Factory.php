@@ -13,7 +13,7 @@ class Factory
 
     private function __construct(Introspector $introspector)
     {
-        $this->meta = new Collection();
+        $this->meta         = new Collection();
         $this->introspector = $introspector;
     }
 
@@ -28,39 +28,39 @@ class Factory
     public function get(Collection $schema): Collection
     {
         foreach ($schema as $ns => $runtime) {
-            if(!$this->meta->has($ns)) {
+            if (!$this->meta->has($ns)) {
                 $this->meta->set($ns, $this->introspector->getMeta($runtime));
             }
         }
         return new Collection($this->meta->getArrayCopy());
     }
 
-//    private function getColumns(Meta $meta): Columns\Collection
-//    {
-//        $columns = new Columns\Collection();
-//        foreach ([] as $column) {
-//            $columns->set($column->name, new Column(
-//                $column->name,
-//                $meta->getTable()->name,
-//                false,
-//                false,
-//                null,
-//                null,
-//                $column->type,
-//                $column->length,
-//                $column->nullable,
-//                $column->increment,
-//                $column->precision,
-//                $column->scale,
-//                $column->unique === 1 ? true : null,
-//                $column->uqGroup,
-//                $column->index === 1 ? true : null,
-//                $column->idxGroup,
-//                $column->unsigned,
-//                $column->nullDefault,
-//                $column->default
-//            ));
-//        }
-//        return $columns;
-//    }
+    //    private function getColumns(Meta $meta): Columns\Collection
+    //    {
+    //        $columns = new Columns\Collection();
+    //        foreach ([] as $column) {
+    //            $columns->set($column->name, new Column(
+    //                $column->name,
+    //                $meta->getTable()->name,
+    //                false,
+    //                false,
+    //                null,
+    //                null,
+    //                $column->type,
+    //                $column->length,
+    //                $column->nullable,
+    //                $column->increment,
+    //                $column->precision,
+    //                $column->scale,
+    //                $column->unique === 1 ? true : null,
+    //                $column->uqGroup,
+    //                $column->index === 1 ? true : null,
+    //                $column->idxGroup,
+    //                $column->unsigned,
+    //                $column->nullDefault,
+    //                $column->default
+    //            ));
+    //        }
+    //        return $columns;
+    //    }
 }
